@@ -1,0 +1,112 @@
+/** @param {HTMLSelectElement} select @param {string[]} values @param {string} firstLabel @returns {void} */
+function fillSelect(select, values, firstLabel) {
+  const current = select.value;
+  select.innerHTML = '<option value="">' + escapeHtml(firstLabel) + '</option>' + values.map(function(value) { return '<option value="' + escapeAttribute(value) + '">' + escapeHtml(value) + '</option>'; }).join('');
+  if (values.includes(current)) select.value = current;
+}
+/** @param {string[]} values @returns {string[]} */
+function uniqueSorted(values) {
+  const map = Object.create(null);
+  values.forEach(function(value) { if (value) map[value] = true; });
+  return Object.keys(map).sort(function(a,b) { return a.localeCompare(b,'es',{numeric:true,sensitivity:'base'}); });
+}
+/** @param {number} value @param {string} currency @returns {string} */
+function formatCurrencyValue(value,currency) { return currency === 'COP' ? integerFormatter.format(value) : moneyFormatter.format(value); }
+/** @param {number} value @param {string} currency @returns {string} */
+function compactMoney(value,currency) {
+  const n = Number(value) || 0;
+  if (n >= 1000000000) return (n / 1000000000).toFixed(1) + 'B';
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+  return formatCurrencyValue(n,currency);
+}
+/** @param {string} dateString @returns {string} */
+function renderEta(dateString) {
+  if (!dateString) return '<span class="rp-muted-cell">Sin fecha</span>';
+  const diff = Math.round((parseIsoDate(dateString) - startOfDay(new Date())) / 86400000);
+  return '<span class="rp-eta' + (diff >= 0 && diff <= 1 ? ' is-near' : '') + (diff < 0 ? ' is-past' : '') + '">' + escapeHtml(formatDateHuman(dateString)) + '</span>';
+}
+/** @param {string|Date} value @returns {string} */
+function formatDateHuman(value) {
+  if (!value) return '';
+  const date = typeof value === 'string' ? parseIsoDate(value) : value;
+  if (!date || Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('es-CO',{day:'2-digit',month:'short',year:'numeric'}).format(date);
+}
+/** @param {string} value @returns {string} */
+function formatYearMonth(value) {
+  const parts = value.split('-');
+  return new Intl.DateTimeFormat('es-CO',{month:'long',year:'numeric'}).format(new Date(Number(parts[0]),Number(parts[1])-1,1));
+}
+/** @param {string} value @returns {Date|null} */
+function parseIsoDate(value) {
+  if (!value) return null;
+  const parts = String(value).slice(0,10).split('-');
+  return new Date(Number(parts[0]),Number(parts[1])-1,Number(parts[2]));
+}
+/** @param {Date} date @returns {Date} */
+function startOfDay(date) { return new Date(date.getFullYear(),date.getMonth(),date.getDate()); }
+/** @param {Date} date @returns {string} */
+function isoWeekKey(date) {
+  const temp = new Date(Date.UTC(date.getFullYear(),date.getMonth(),date.getDate()));
+  temp.setUTCDate(temp.getUTCDate() + 4 - (temp.getUTCDay() || 7));
+  const year = temp.getUTCFullYear();
+  const week = Math.ceil(((temp - new Date(Date.UTC(year,0,1))) / 86400000 + 1) / 7);
+  return year + '-W' + String(week).padStart(2,'0');
+}
+/** @param {string} key @returns {string} */
+function getWeekLabel(key) {
+  const record = state.filteredRecords.find(function(item) { return item.semanaClave === key; });
+  return record && record.semanaEtiqueta ? record.semanaEtiqueta : key || 'Semana';
+}
+/** @param {string} label @returns {string} */
+function shortWeekLabel(label) { const m = String(label || '').match(/Semana\s+(\d+)/); return m ? 'Semana ' + m[1] : label; }
+/** @param {unknown} value @returns {string} */
+function normalizeReference(value) { return String(value || '').trim().toUpperCase().replace(/\s+/g,'').slice(0,7); }
+/** @param {unknown} value @returns {string} */
+function normalizeKey(value) { return String(value || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+/** @param {Function} fn @param {number} delay @returns {Function} */
+function debounce(fn,delay) {
+  let timer = null;
+  return function(...args) { clearTimeout(timer); timer = setTimeout(function() { if (!state.destroyed) fn.apply(null,args); },delay); };
+}
+/** Solo presentación; el servidor determina el solicitante desde Firebase/USERS. @returns {string} */
+function getCurrentUser() {
+  const name = document.getElementById('user-display-name');
+  return name && name.textContent.trim() ? name.textContent.trim() : 'USUARIO';
+}
+/** @param {string=} text @returns {void} */
+function showLoading(text) { if (state.destroyed) return; el['rp-loading-text'].textContent = text || 'Procesando...'; el['rp-loading'].classList.add('is-visible'); }
+/** @returns {void} */
+function hideLoading() { if (!state.destroyed) el['rp-loading'].classList.remove('is-visible'); }
+/** @param {string} message @param {string} type @returns {void} */
+function showToast(message,type) {
+  if (state.destroyed) return;
+  const toast = document.createElement('div');
+  toast.className = 'rp-toast ' + (type === 'error' ? 'is-error' : 'is-success');
+  toast.textContent = message; el['rp-toast-zone'].appendChild(toast);
+  setTimeout(function() { toast.style.opacity = '0'; toast.style.transform = 'translateY(8px)'; setTimeout(function() { toast.remove(); },220); },3800);
+}
+/** @param {{message?:string}} error @returns {void} */
+function handleServerError(error) { hideLoading(); showToast(error && error.message ? error.message : 'Ocurrió un error inesperado.','error'); }
+/** @param {unknown} value @returns {string} */
+function escapeHtml(value) { return String(value || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
+/** @param {unknown} value @returns {string} */
+function escapeAttribute(value) { return escapeHtml(value); }
+/** @param {Event=} event @returns {void} */
+function destroy(event) {
+  if (state.destroyed) return;
+  state.destroyed = true;
+  rpLifecycle.abort(); rpObserver.disconnect();
+  window.removeEventListener('beforeunload',handleBeforeUnload);
+  if (state.backButton) state.backButton.removeEventListener('click',handleModuleBack,true);
+  if (event && event.type === 'ag:session-ended') {
+    sessionStorage.removeItem(STORAGE_DRAFT); sessionStorage.removeItem(STORAGE_RESTORE); sessionStorage.removeItem('AG_RP_FROM_PROVISIONS');
+  }
+  state.currentOperation = null; state.editOperation = null; state.confirmCallback = null;
+  state.providers = null; state.clients = null;
+  rpRoot.querySelectorAll('.rp-modal-layer.is-open').forEach(function(modal) { modal.classList.remove('is-open'); });
+  document.body.style.overflow = '';
+}
+window.RPModule = {destroy:destroy};
+init();
