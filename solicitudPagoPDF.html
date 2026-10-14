@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+
+<!-- AG OPERATIONS · PDF SOLICITUD DE PAGO · V6-20260924-TIPOGRAFIA-LEGIBLE -->
+
+<html lang="es">
+
+<head>
+
+  <base target="_top">
+
+  <meta charset="UTF-8">
+  <meta name="referrer" content="no-referrer">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Solicitud de Pago</title>
+
+  <?!= include('SolicitudPagoPDFStylesheet'); ?>
+
+</head>
+
+<body>
+
+  <header class="pdf-toolbar">
+
+    <div class="toolbar-title">
+
+      <strong>Solicitud de Pago</strong>
+
+      <span id="toolbar-consecutivo">Cargando...</span>
+
+    </div>
+
+    <div class="toolbar-actions">
+
+      <button type="button" class="secondary" onclick="window.close()">Cerrar</button>
+
+      <button type="button" id="pdf-print-button" onclick="window.print()" disabled>Generar PDF / Imprimir</button>
+
+    </div>
+
+  </header>
+
+  <main class="pdf-workspace">
+
+    <div id="pdf-container" class="pdf-loading">
+
+      <div>
+
+        <div class="loading-spinner" aria-hidden="true"></div>
+
+        <strong>Preparando solicitud de pago</strong>
+
+        <span>Cargando información...</span>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <?!= include('SolicitudPagoPDFJavascript'); ?>
+
+</body>
+
+</html>
