@@ -1,0 +1,532 @@
+<script>
+
+(function installSolicitudPDF() {
+    /** @typedef {{consecutivo:string,permiso:string}} SpPdfLocation */
+    /** @type {'loading'|'rendering'|'ready'|'error'} */
+    let spPdfState = 'loading';
+    /** @type {number|null} */
+    let spPdfLoadTimer = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+      spPdfLoadTimer = window.setTimeout(function() {
+        if (spPdfState === 'loading') {
+          mostrarError('La solicitud tardó demasiado en cargar. Cierre esta pestaña y utilice nuevamente el botón Imprimir.');
+        }
+      }, 20000);
+      resolverUbicacionSolicitudPDF_().then(function(location) {
+        cargarSolicitudPDF(location.consecutivo, location.permiso);
+      }).catch(function() {
+        mostrarError('No fue posible obtener la autorización del documento. Vuelva a abrirlo desde la aplicación.');
+      });
+    }, {once: true});
+
+    /** @param {*} value @returns {string} */
+    function textoParametroPDF_(value) {
+      if (Array.isArray(value)) value = value[0];
+      return typeof value === 'string' ? value.trim() : '';
+    }
+
+    /**
+     * HTML Service runs inside an iframe; use the host location when available.
+     * @returns {Promise<SpPdfLocation>}
+     */
+    function resolverUbicacionSolicitudPDF_() {
+      const query = new URLSearchParams(window.location.search);
+      const fallback = {
+        consecutivo: textoParametroPDF_(query.get('consecutivo') || query.get('id')),
+        permiso: textoParametroPDF_(query.get('permiso'))
+      };
+      return new Promise(function(resolve, reject) {
+        if (typeof google !== 'undefined' && google.script && google.script.url &&
+            typeof google.script.url.getLocation === 'function') {
+          try {
+            google.script.url.getLocation(function(location) {
+              const params = location && location.parameter ? location.parameter : {};
+              resolve({
+                consecutivo: textoParametroPDF_(params.consecutivo || params.id) || fallback.consecutivo,
+                permiso: textoParametroPDF_(params.permiso) || fallback.permiso
+              });
+            });
+          } catch (error) { reject(error); }
+        } else resolve(fallback);
+      });
+    }
+
+    /** @param {string} permiso @param {string} consecutivo @returns {Promise<Object>} */
+    function consultarSolicitudPDF_(permiso, consecutivo) {
+      return new Promise(function(resolve, reject) {
+        if (typeof google === 'undefined' || !google.script || !google.script.run) {
+          reject(new Error('Servicio de la aplicación no disponible.')); return;
+        }
+        google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .cargarSolicitudPagoPDFConPermiso_SP(permiso, consecutivo);
+      });
+    }
+
+    /** @param {string} consecutivo @param {string} permiso @returns {void} */
+    function cargarSolicitudPDF(consecutivo, permiso) {
+      if (spPdfState !== 'loading') return;
+      if (!/^SOL-PG\d{1,16}$/i.test(consecutivo) || !/^[a-f0-9]{64}$/.test(permiso)) {
+        mostrarError('Este enlace no tiene una autorización válida. Abra la solicitud con Imprimir desde la aplicación.');
+        return;
+      }
+      document.getElementById('toolbar-consecutivo').textContent = consecutivo;
+      consultarSolicitudPDF_(permiso, consecutivo).then(function(resultado) {
+        if (spPdfState !== 'loading') return;
+        if (!resultado || !resultado.success || !resultado.datos) {
+          mostrarError(resultado && resultado.message ? resultado.message : 'No fue posible cargar la solicitud.');
+          return;
+        }
+        renderizarDocumento(resultado.datos, resultado.logoDataUri);
+      }).catch(function(error) {
+        if (spPdfState !== 'loading') return;
+        const message = error && typeof error.message === 'string' ? error.message : '';
+        mostrarError(message.includes('AG_AUTH_REQUIRED') ?
+          'La autorización del documento venció o ya fue utilizada. Vuelva a pulsar Imprimir desde la aplicación.' :
+          'No fue posible cargar la solicitud. Vuelva a abrirla desde la aplicación.');
+      });
+    }
+    /** @param {Object} datos @param {string} logoDataUri @returns {void} */
+    function renderizarDocumento(datos, logoDataUri) {
+
+      if (spPdfState !== 'loading') return;
+      spPdfState = 'rendering';
+      if (spPdfLoadTimer) window.clearTimeout(spPdfLoadTimer);
+
+      const container = document.getElementById('pdf-container');
+
+      container.className = 'pdf-page';
+
+      container.innerHTML =
+
+        '<div class="document-stack">' +
+
+          generarFormulario(datos, logoDataUri, 'COPIA 1') +
+
+          '<div class="cut-line" aria-hidden="true">CORTE</div>' +
+
+          generarFormulario(datos, logoDataUri, 'COPIA 2') +
+
+        '</div>';
+
+      esperarLogosDocumento(container)
+
+        .then(function() {
+
+          if (spPdfState !== 'rendering') return;
+          spPdfState = 'ready';
+          const printButton = document.getElementById('pdf-print-button');
+
+          if (printButton) printButton.disabled = false;
+
+        })
+
+        .catch(function() {
+
+          mostrarError('No fue posible cargar el logo de AG Logistics. Intente abrir nuevamente la solicitud.');
+
+        });
+
+    }
+
+    /** @param {HTMLElement} container @returns {Promise<void[]>} */
+    function esperarLogosDocumento(container) {
+
+      const imagenes = Array.from(container.querySelectorAll('.form-logo img'));
+      if (imagenes.length !== 2) return Promise.reject(new Error('Documento incompleto.'));
+
+      return Promise.all(imagenes.map(function(imagen) {
+
+        return new Promise(function(resolve, reject) {
+
+          if (imagen.complete) {
+
+            if (imagen.naturalWidth > 0) resolve();
+
+            else reject(new Error('Logo no disponible.'));
+
+            return;
+
+          }
+
+          let settled = false;
+          /** @param {Error|null} error @returns {void} */
+          function finish(error) {
+            if (settled) return;
+            settled = true;
+            window.clearTimeout(temporizador);
+            imagen.removeEventListener('load', onLoad);
+            imagen.removeEventListener('error', onError);
+            if (error) reject(error); else resolve();
+          }
+          /** @returns {void} */
+          function onLoad() { finish(imagen.naturalWidth > 0 ? null : new Error('Logo no disponible.')); }
+          /** @returns {void} */
+          function onError() { finish(new Error('No fue posible renderizar el logo.')); }
+          const temporizador = window.setTimeout(function() {
+            finish(new Error('Tiempo de carga del logo agotado.'));
+          }, 5000);
+          imagen.addEventListener('load', onLoad, {once: true});
+          imagen.addEventListener('error', onError, {once: true});
+          if (imagen.complete) onLoad();
+        });
+
+      }));
+
+    }
+
+    /** @param {Object} datos @param {string} logoDataUri @param {string} etiquetaCopia @returns {string} */
+    function generarFormulario(datos, logoDataUri, etiquetaCopia) {
+
+      const d = datos || {};
+
+      const transferencia = normalizarPago(d.tipoPago) === 'TRANSFERENCIA';
+
+      const pse = normalizarPago(d.tipoPago) === 'PSE';
+
+      return `
+
+        <section class="payment-form">
+
+          <div class="form-header">
+
+            <div class="form-logo">
+
+              <img src="${escapeAttribute(logoDataUri)}" alt="AG Logistics">
+
+            </div>
+
+            <div class="form-title">
+
+              <div class="form-title-main">SOLICITUD DE PAGO - OPERACIONES</div>
+
+              <div class="form-title-code">FIN-F-003 / V0.1 / 24 de Junio de 2015</div>
+
+            </div>
+
+          </div>
+
+          <div class="form-body">
+
+            <div class="two-columns">
+
+              ${campoLinea('FECHA SOLICITUD', d.fechaSolicitud)}
+
+              ${campoLinea('SOLICITA', d.personaSolicita)}
+
+            </div>
+
+            <div class="two-columns">
+
+              ${campoLinea('FECHA DE PAGO', d.fechaPago)}
+
+              ${campoLinea('ÁREA', d.area)}
+
+            </div>
+
+            <div class="payment-methods">
+
+              <span class="field-label">PAGO</span>
+
+              ${opcionPago('TRANSFERENCIA', transferencia)}
+
+              ${opcionPago('PSE', pse)}
+
+            </div>
+
+            <div class="beneficiary-row">
+
+              <span class="field-label">BENEFICIARIO</span>
+
+              ${lineaValor(d.beneficiario)}
+
+              <span class="field-label">NIT</span>
+
+              ${lineaValor(d.nit)}
+
+            </div>
+
+            <div class="client-order-row">
+
+              <span class="field-label">CLIENTE</span>
+
+              ${lineaValor(d.cliente)}
+
+              <span class="field-label">D.O. - AGM-X</span>
+
+              ${lineaValor(unirReferenciaDO(d.referenciaAg, d.doNumber))}
+
+            </div>
+
+            <div class="total-row">
+
+              <span class="field-label">VALOR TOTAL A GIRAR</span>
+
+              <span></span>
+
+              <span class="field-label">${escapeHTML(obtenerMonedaPDF(d))}</span>
+
+              <div class="value-box"><span class="field-value">${formatearValorSinMonedaPDF(d)}</span></div>
+
+            </div>
+
+            ${campoLinea('DOCUMENTO DE TRANSPORTE', d.documentoTransporte)}
+
+            <div class="two-columns">
+
+              ${campoLinea('CONTENEDOR', d.contenedor)}
+
+              ${campoLinea('SERVICIO', d.servicio)}
+
+            </div>
+
+            <div class="concept-grid">
+
+              <div>
+
+                <div class="concept-title">CONCEPTO:</div>
+
+                <div class="observations">${escapeHTML(d.observaciones)}</div>
+
+              </div>
+
+              <div>
+
+                <div class="concept-title">VALORES</div>
+
+                <div class="concept-value"><span class="field-value">${formatearValorPDF(d)}</span></div>
+
+              </div>
+
+            </div>
+
+            <div class="approval-section">
+
+              ${firma(d.personaSolicita, 'NOMBRE SOLICITA')}
+
+              ${firma('', 'FIRMA APROBACIÓN')}
+
+              ${firma('', 'VISTO BUENO')}
+
+            </div>
+
+          </div>
+
+          <span class="copy-label">${escapeHTML(etiquetaCopia)} · ${escapeHTML(d.consecutivo)}</span>
+
+        </section>
+
+      `;
+
+    }
+
+    /** @param {string} etiqueta @param {*} valor @returns {string} */
+    function campoLinea(etiqueta, valor) {
+
+      return `
+
+        <div class="field-row">
+
+          <span class="field-label">${escapeHTML(etiqueta)}</span>
+
+          ${lineaValor(valor)}
+
+        </div>
+
+      `;
+
+    }
+
+    /** @param {*} valor @returns {string} */
+    function lineaValor(valor) {
+
+      return '<span class="field-line"><span class="field-value">' +
+
+        escapeHTML(valor) + '</span></span>';
+
+    }
+
+    /** @param {string} etiqueta @param {boolean} seleccionado @returns {string} */
+    function opcionPago(etiqueta, seleccionado) {
+
+      return '<span class="method-option"><span class="method-box">' +
+
+        (seleccionado ? '✓' : '') + '</span>' + escapeHTML(etiqueta) + '</span>';
+
+    }
+
+    /** @param {*} valor @param {string} etiqueta @returns {string} */
+    function firma(valor, etiqueta) {
+
+      return `
+
+        <div class="approval-item">
+
+          <div class="approval-line"><span class="field-value">${escapeHTML(valor)}</span></div>
+
+          <div class="approval-label">${escapeHTML(etiqueta)}</div>
+
+        </div>
+
+      `;
+
+    }
+
+    /** @param {*} valor @returns {string} */
+    function normalizarPago(valor) {
+
+      const texto = String(valor || '').trim().toUpperCase();
+
+      if (texto.indexOf('PSE') !== -1 || texto.indexOf('PÁGINA') !== -1 || texto.indexOf('PAGINA') !== -1) return 'PSE';
+
+      if (texto.indexOf('TRANSFER') !== -1) return 'TRANSFERENCIA';
+
+      return texto;
+
+    }
+
+    /** @param {Object} datos @returns {string} */
+    function formatearValorPDF(datos) {
+
+      const monedas = [
+
+        { codigo: 'USD', valor: datos.usd },
+
+        { codigo: 'EUR', valor: datos.eur },
+
+        { codigo: 'COP', valor: datos.cop }
+
+      ];
+
+      const importes = monedas.filter(function(item) {
+
+        return item.valor !== '' && item.valor !== null && item.valor !== undefined;
+
+      });
+
+      if (!importes.length) return '';
+
+      return importes.map(function(item) {
+
+        const numero = Number(item.valor);
+
+        if (isNaN(numero)) {
+
+          return item.codigo + ' ' + escapeHTML(String(item.valor));
+
+        }
+
+        const decimales = item.codigo === 'COP' ? 0 : 2;
+
+        return item.codigo + ' ' + numero.toLocaleString('es-CO', {
+
+          minimumFractionDigits: decimales,
+
+          maximumFractionDigits: decimales
+
+        });
+
+      }).join(' / ');
+
+    }
+
+    /** @param {Object} datos @returns {string} */
+    function obtenerMonedaPDF(datos) {
+
+      if (datos.usd !== '' && datos.usd !== null && datos.usd !== undefined) return 'USD';
+
+      if (datos.eur !== '' && datos.eur !== null && datos.eur !== undefined) return 'EUR';
+
+      if (datos.cop !== '' && datos.cop !== null && datos.cop !== undefined) return 'COP';
+
+      return '';
+
+    }
+
+    /** @param {Object} datos @returns {string} */
+    function formatearValorSinMonedaPDF(datos) {
+
+      const moneda = obtenerMonedaPDF(datos);
+
+      const valor = moneda ? datos[moneda.toLowerCase()] : '';
+
+      if (valor === '' || valor === null || valor === undefined) return '';
+
+      const numero = Number(valor);
+
+      if (isNaN(numero)) return escapeHTML(String(valor));
+
+      const decimales = moneda === 'COP' ? 0 : 2;
+
+      return numero.toLocaleString('es-CO', {
+
+        minimumFractionDigits: decimales,
+
+        maximumFractionDigits: decimales
+
+      });
+
+    }
+
+    /** @param {*} referencia @param {*} doNumber @returns {string} */
+    function unirReferenciaDO(referencia, doNumber) {
+
+      return [referencia, doNumber].filter(function(valor) {
+
+        return String(valor || '').trim();
+
+      }).join(' - D.O. ');
+
+    }
+
+    /** @param {*} value @returns {string} */
+    function escapeHTML(value) {
+
+      if (value === null || value === undefined) return '';
+
+      return String(value)
+
+        .replace(/&/g, '&amp;')
+
+        .replace(/</g, '&lt;')
+
+        .replace(/>/g, '&gt;')
+
+        .replace(/"/g, '&quot;')
+
+        .replace(/'/g, '&#039;');
+
+    }
+
+    /** @param {*} value @returns {string} */
+    function escapeAttribute(value) {
+
+      return escapeHTML(value || '');
+
+    }
+
+    /** @param {string} mensaje @returns {void} */
+    function mostrarError(mensaje) {
+      spPdfState = 'error';
+      const printButton = document.getElementById('pdf-print-button');
+      if (printButton) printButton.disabled = true;
+
+      if (spPdfLoadTimer) window.clearTimeout(spPdfLoadTimer);
+
+      const container = document.getElementById('pdf-container');
+
+      container.className = 'pdf-error';
+
+      container.innerHTML =
+
+        '<div class="error-box"><strong>No fue posible generar el documento</strong>' +
+
+        '<p>' + escapeHTML(mensaje) + '</p></div>';
+
+    }
+
+  
+})();
+</script>
