@@ -1,0 +1,664 @@
+<!-- AG OPERATIONS · SOLICITUDES DE PAGO · V3-20260923-VALIDADA -->
+
+<?!= include('SolicitudesPagoStylesheet'); ?>
+<?!= include('RO_Estilos'); ?>
+
+<!-- ======================================================
+
+     INTERFAZ PRINCIPAL DEL MÓDULO
+
+     ====================================================== -->
+
+<div class="sp-module">
+
+  <div class="sp-header">
+
+    <div>
+
+      <h1 class="sp-title">Solicitudes de Pago</h1>
+
+      <p class="sp-subtitle">
+
+        Gestión y generación de solicitudes de pago
+
+      </p>
+
+    </div>
+
+    <button
+
+      type="button"
+
+      class="sp-new-btn"
+
+      onclick="sp_openModal()"
+
+    >
+
+      + Nueva solicitud de pago
+
+    </button>
+
+  </div>
+
+  <section class="sp-history-card" aria-label="Histórico reciente de solicitudes de pago">
+
+    <div class="sp-history-toolbar">
+
+      <div class="sp-history-summary">
+
+        <div class="sp-history-label">Solicitudes visibles</div>
+
+        <div class="sp-periods" id="sp-periods"></div>
+
+      </div>
+
+      <div class="sp-history-controls">
+
+        <input class="sp-search-input" id="sp-history-search" type="search"
+
+          placeholder="Buscar solicitud, persona, cliente..." oninput="sp_applyHistoryFilter()">
+
+        <label class="sp-page-size-wrap" for="sp-page-size">
+
+          Registros por página
+
+          <select id="sp-page-size" onchange="sp_changePageSize()">
+
+            <option value="50" selected>50</option>
+
+            <option value="100">100</option>
+
+          </select>
+
+        </label>
+
+      </div>
+
+    </div>
+
+    <div class="sp-history-loading" id="sp-history-loading">
+
+      <div>
+
+        <div class="sp-history-spinner"></div>
+
+        Consultando solicitudes...
+
+      </div>
+
+    </div>
+
+    <div class="sp-history-error" id="sp-history-error"></div>
+
+    <div class="sp-history-empty" id="sp-history-empty">
+
+      <div>
+
+        <strong>No hay solicitudes para mostrar</strong>
+
+        No existen registros del mes actual ni del mes anterior.
+
+      </div>
+
+    </div>
+
+    <div class="sp-table-wrap" id="sp-table-wrap">
+
+      <table class="sp-history-table">
+
+        <thead>
+
+          <tr>
+
+            <th>Solicitud</th>
+
+            <th>Fecha generación</th>
+
+            <th>Persona que solicita</th>
+
+            <th>Beneficiario</th>
+
+            <th>Cliente</th>
+
+            <th>Referencia AG</th>
+
+            <th>Valor</th>
+
+            <th>Fecha de pago</th>
+
+            <th>Acción</th>
+
+          </tr>
+
+        </thead>
+
+        <tbody id="sp-history-body"></tbody>
+
+      </table>
+
+    </div>
+
+    <div class="sp-pagination" id="sp-pagination">
+
+      <div class="sp-pagination-info" id="sp-pagination-info"></div>
+
+      <div class="sp-pagination-actions">
+
+        <button type="button" class="sp-page-btn" id="sp-prev-page" onclick="sp_previousPage()">Anterior</button>
+
+        <button type="button" class="sp-page-btn" id="sp-next-page" onclick="sp_nextPage()">Siguiente</button>
+
+      </div>
+
+    </div>
+
+  </section>
+
+</div>
+
+<!-- ======================================================
+
+     MODAL NUEVA SOLICITUD
+
+     ====================================================== -->
+
+<div id="sp-modal">
+
+  <div class="sp-modal-box">
+
+    <div class="sp-modal-header">
+
+      <h2>Nueva solicitud de pago</h2>
+
+      <button
+
+        type="button"
+
+        class="sp-close"
+
+        onclick="sp_closeModal()"
+
+      >
+
+        ×
+
+      </button>
+
+    </div>
+
+    <form
+
+      class="sp-form"
+
+      onsubmit="sp_submitForm(event)"
+
+    >
+
+      <!-- DATOS DE LA SOLICITUD -->
+
+      <div class="sp-section-title">
+
+        Datos de la solicitud
+
+      </div>
+
+      <div class="sp-grid">
+
+        <div class="sp-field">
+
+          <label>
+
+            Fecha solicitud
+
+          </label>
+
+          <input
+
+            type="date"
+
+            id="sp-f-sol"
+
+            readonly
+
+          >
+
+        </div>
+
+        <div class="sp-field">
+
+          <label>
+
+            Fecha de pago <span class="sp-required">*</span>
+
+          </label>
+
+          <input
+
+            type="date"
+
+            id="sp-f-pago"
+
+            required
+
+          >
+
+        </div>
+
+        <div class="sp-field">
+
+          <label>
+
+            Tipo de pago <span class="sp-required">*</span>
+
+          </label>
+
+          <select
+
+            id="sp-tipo-pago"
+
+            required
+
+          >
+
+            <option value="">
+
+              -- Seleccionar --
+
+            </option>
+
+            <option value="Transferencia a cuenta bancaria">
+
+              Transferencia a cuenta bancaria
+
+            </option>
+
+            <option value="Pago por página / PSE">
+
+              Pago por página / PSE
+
+            </option>
+
+          </select>
+
+        </div>
+
+        <div class="sp-field">
+
+          <label>
+
+            Beneficiario <span class="sp-required">*</span>
+
+          </label>
+
+          <select
+
+            id="sp-beneficiario"
+
+            onchange="sp_onProvChange()"
+
+            required
+
+          >
+
+            <option value="">
+
+              -- Seleccionar --
+
+            </option>
+
+          </select>
+
+        </div>
+
+        <div class="sp-field">
+
+          <label>
+
+            NIT
+
+          </label>
+
+          <input
+
+            type="text"
+
+            id="sp-nit"
+
+            readonly
+
+          >
+
+        </div>
+
+        <div class="sp-field">
+
+          <label>
+
+            Solicita
+
+          </label>
+
+          <input
+
+            type="text"
+
+            id="sp-solicita"
+
+            readonly
+
+          >
+
+        </div>
+
+        <div class="sp-field">
+
+          <label>
+
+            Área
+
+          </label>
+
+          <select id="sp-area" required>
+
+            <option value="">-- Seleccionar --</option>
+
+            <option value="Comercial">Comercial</option>
+
+            <option value="Gerencia">Gerencia</option>
+
+            <option value="Operaciones">Operaciones</option>
+
+            <option value="Customer Service">Customer Service</option>
+
+          </select>
+
+        </div>
+
+        <div class="sp-field">
+
+          <label>
+
+            Cliente <span class="sp-required">*</span>
+
+          </label>
+
+          <select
+
+            id="sp-cliente" data-ro-campo="cliente"
+
+            required
+
+          >
+
+            <option value="">
+
+              -- Seleccionar --
+
+            </option>
+
+          </select>
+
+        </div>
+
+        <div class="sp-field">
+
+          <label>
+
+            D.O. <span class="sp-required">*</span>
+
+          </label>
+
+          <input
+
+            type="text"
+
+            id="sp-do" data-ro-campo="doNumber"
+
+            inputmode="numeric"
+
+            maxlength="9"
+
+            pattern="[0-9]{9}"
+
+            placeholder="9 dígitos"
+
+            required
+
+          >
+
+        </div>
+
+      </div>
+
+      <!-- INFORMACIÓN OPERATIVA -->
+
+      <div class="sp-section-title">
+
+        Información operativa
+
+      </div>
+
+      <div class="sp-grid">
+
+        <div class="sp-field">
+
+          <label>
+
+            Documento de transporte / BL <span class="sp-required">*</span>
+
+          </label>
+
+          <input
+
+            type="text"
+
+            id="sp-doc-trans" data-ro-campo="docTransporte"
+
+            onblur="sp_checkBL()"
+
+            required
+
+          >
+
+        </div>
+
+        <div class="sp-field">
+
+          <label>
+
+            Contenedor <span class="sp-required">*</span>
+
+          </label>
+
+          <input
+
+            type="text"
+
+            id="sp-contenedor"
+
+            required
+
+          >
+
+        </div>
+
+        <div class="sp-field">
+
+          <label>
+
+            Servicio <span class="sp-required">*</span>
+
+          </label>
+
+          <input
+
+            type="text"
+
+            id="sp-servicio"
+
+            required
+
+          >
+
+        </div>
+
+        <div class="sp-bl-warning" id="sp-bl-warning" role="status"></div>
+
+        <div class="sp-field">
+
+          <label>
+
+            Moneda <span class="sp-required">*</span>
+
+          </label>
+
+          <select
+
+            id="sp-moneda"
+
+            required
+
+          >
+
+            <option value="COP">
+
+              COP
+
+            </option>
+
+            <option value="USD">
+
+              USD
+
+            </option>
+
+            <option value="EUR">
+
+              EUR
+
+            </option>
+
+          </select>
+
+        </div>
+
+        <div class="sp-field">
+
+          <label>
+
+            Valor <span class="sp-required">*</span>
+
+          </label>
+
+          <input
+
+            type="text"
+
+            id="sp-valor"
+
+            inputmode="decimal"
+
+            placeholder="Ej. 1.250.000"
+
+            required
+
+          >
+
+        </div>
+
+        <div class="sp-field full">
+
+          <label>
+
+            Referencia AG <span class="sp-required">*</span>
+
+          </label>
+
+          <input
+
+            type="text"
+
+            id="sp-referencia-ag" data-ro-campo="referenciaAg"
+
+            placeholder="AGM0000 o AGX0000"
+
+            maxlength="7"
+
+            pattern="(AGM|AGX)[0-9]{4}"
+
+            required
+
+          >
+
+        </div>
+
+        <div class="sp-field full">
+
+          <label>
+
+            Observaciones
+
+          </label>
+
+          <textarea
+
+            id="sp-obs"
+
+          ></textarea>
+
+        </div>
+
+      </div>
+
+      <?!= include('RO_PagoIntegracion'); ?>
+
+      <!-- PIE DEL FORMULARIO -->
+
+      <div class="sp-modal-footer">
+
+        <button
+
+          type="button"
+
+          class="sp-cancel-btn"
+
+          onclick="sp_closeModal()"
+
+        >
+
+          Cancelar
+
+        </button>
+
+        <button
+
+          type="submit"
+
+          class="sp-submit-btn"
+
+          id="sp-btn-sub"
+
+        >
+
+          Guardar y Generar PDF
+
+        </button>
+
+      </div>
+
+    </form>
+
+  </div>
+
+</div>
+
+<!-- ======================================================
+
+     JAVASCRIPT DEL MÓDULO
+
+     ====================================================== -->
+
+<?!= include('SolicitudesPagoJavascript'); ?>
+
+<?!= include('RO_Javascript'); ?>
