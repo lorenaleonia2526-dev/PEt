@@ -1,0 +1,979 @@
+<script>
+'use strict';
+
+/**
+ * @typedef {Object} AgClientProfile
+ * @property {boolean} found
+ * @property {string=} nombre
+ * @property {string=} area
+ * @property {string=} email
+ * @property {string=} uid
+ * @property {number=} expiresAt
+ * @property {string=} code
+ * @property {string=} message
+ */
+
+/**
+ * @typedef {Object} AgFirebaseClientUser
+ * @property {string} uid
+ * @property {string|null} email
+ * @property {function(boolean=): Promise<string>} getIdToken
+ */
+
+/**
+ * @typedef {Object} AgFirebaseClientAuth
+ * @property {AgFirebaseClientUser|null} currentUser
+ * @property {function(string): Promise<void>} setPersistence
+ * @property {function(function(AgFirebaseClientUser|null):void, function(unknown):void):function():void} onIdTokenChanged
+ * @property {function(string,string):Promise<unknown>} signInWithEmailAndPassword
+ * @property {function(string):Promise<void>} sendPasswordResetEmail
+ * @property {function():Promise<void>} signOut
+ */
+
+(function installAgLogin() {
+  if (window.AGLogin) {
+    return;
+  }
+
+  /**
+   * @type {{
+   *   auth: AgFirebaseClientAuth|null,
+   *   initialization: Promise<void>|null,
+   *   epoch: number,
+   *   intent: number,
+   *   submitActive: boolean,
+   *   authorizedUid: string|null,
+   *   phase: string,
+   *   busy: boolean,
+   *   fadeTimer: number|null,
+   *   expiryTimer: number|null,
+   *   messageOnSignedOut: string,
+   *   signOutRequested: boolean
+   * }}
+   */
+  const state = {
+    auth: null,
+    initialization: null,
+    epoch: 0,
+    intent: 0,
+    submitActive: false,
+    authorizedUid: null,
+    phase: 'initializing',
+    busy: false,
+    fadeTimer: null,
+    expiryTimer: null,
+    messageOnSignedOut: '',
+    signOutRequested: false
+  };
+
+  const messages = Object.freeze({
+    credentials: 'Correo o contraseña incorrectos.',
+    denied: 'Esta cuenta no tiene acceso autorizado a AG Operations.',
+    verify: 'No fue posible acreditar la identidad. Inicie sesión nuevamente.',
+    service: 'No fue posible verificar el acceso. Inténtelo nuevamente.',
+    recovery: 'Si la cuenta existe, recibirás un correo para restablecer la contraseña.'
+  });
+
+  /**
+   * @param {string} id
+   * @returns {HTMLElement|null}
+   */
+  function element(id) {
+    return document.getElementById(id);
+  }
+
+  /**
+   * @param {string} id
+   * @returns {HTMLInputElement|null}
+   */
+  function input(id) {
+    const value = element(id);
+
+    return value instanceof HTMLInputElement
+      ? value
+      : null;
+  }
+
+  /**
+   * @param {string} message
+   * @param {boolean=} success
+   * @returns {void}
+   */
+  function displayMessage(message, success) {
+    const target = element('login-err');
+
+    if (target) {
+      target.style.color = success
+        ? '#3E58B0'
+        : '#C2415A';
+
+      target.textContent = message;
+    }
+  }
+
+  /**
+   * @returns {void}
+   */
+  function resetLoginButton() {
+    const button = element('login-btn-submit');
+
+    if (!(button instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    const waiting =
+      state.busy ||
+      state.phase === 'initializing' ||
+      state.phase === 'verifying';
+
+    button.disabled = waiting;
+    button.textContent = waiting
+      ? 'Ingresando...'
+      : 'Continuar';
+
+    button.style.opacity = waiting ? '0.72' : '1';
+  }
+
+  /**
+   * @returns {void}
+   */
+  function clearTimers() {
+    if (state.fadeTimer !== null) {
+      window.clearTimeout(state.fadeTimer);
+      state.fadeTimer = null;
+    }
+
+    if (state.expiryTimer !== null) {
+      window.clearTimeout(state.expiryTimer);
+      state.expiryTimer = null;
+    }
+  }
+
+  /**
+   * Bloquea visualmente el acceso e invalida la autorización local.
+   * La protección de los datos corresponde también al servidor.
+   *
+   * @param {boolean} clearProfile
+   * @returns {void}
+   */
+  function blockInterface(clearProfile) {
+    clearTimers();
+    state.authorizedUid = null;
+
+    const overlay = element('login-overlay');
+
+    if (overlay) {
+      overlay.style.transition = '';
+      overlay.style.display = 'grid';
+      overlay.style.opacity = '1';
+    }
+
+    if (clearProfile) {
+      const name = element('user-display-name');
+      const area = element('user-display-area');
+
+      if (name) {
+        name.textContent = '';
+      }
+
+      if (area) {
+        area.textContent = '';
+      }
+
+      const password = input('login-password');
+
+      if (password) {
+        password.value = '';
+        password.type = 'password';
+      }
+
+      const toggle = element('toggle-password');
+
+      if (toggle) {
+        toggle.setAttribute(
+          'aria-label',
+          'Mostrar contraseña'
+        );
+
+        toggle.style.color = '#3E58B0';
+      }
+
+      document.dispatchEvent(
+        new CustomEvent('ag:session-ended')
+      );
+    }
+  }
+
+  /**
+   * Utiliza exclusivamente la instancia inicializada por Index.html.
+   *
+   * @returns {AgFirebaseClientAuth}
+   */
+  function getLoginAuth() {
+    if (
+      !window.firebase ||
+      !window.firebase.apps ||
+      !window.firebase.apps.length ||
+      typeof window.firebase.auth !== 'function' ||
+      !window.google ||
+      !window.google.script ||
+      !window.google.script.run
+    ) {
+      throw new Error(
+        'El acceso no está disponible. Recargue la aplicación.'
+      );
+    }
+
+    if (
+      window.firebase.app().options.projectId !== 'peti-f72b0'
+    ) {
+      throw new Error(
+        'La aplicación no está conectada al Firebase autorizado.'
+      );
+    }
+
+    return window.firebase.auth();
+  }
+
+  /**
+   * Descarta operaciones pertenecientes a una sesión anterior.
+   *
+   * @param {number} epoch
+   * @param {AgFirebaseClientUser} user
+   * @returns {boolean}
+   */
+  function isCurrent(epoch, user) {
+    return (
+      state.epoch === epoch &&
+      !state.signOutRequested &&
+      !!state.auth &&
+      !!state.auth.currentUser &&
+      state.auth.currentUser.uid === user.uid
+    );
+  }
+
+  /**
+   * Envía únicamente el ID token al servidor.
+   *
+   * @param {string} idToken
+   * @returns {Promise<AgClientProfile>}
+   */
+  function verifyOnServer(idToken) {
+    return new Promise(function (resolve, reject) {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(function () {
+          reject(new Error(messages.service));
+        })
+        .getUsuarioPorFirebase(idToken);
+    });
+  }
+
+  /**
+   * Bloquea la interfaz antes de intentar cerrar Firebase.
+   *
+   * @param {string} message
+   * @param {number} epoch
+   * @returns {Promise<void>}
+   */
+  async function rejectSession(message, epoch) {
+    if (state.epoch !== epoch) {
+      return;
+    }
+
+    state.epoch++;
+    state.intent++;
+    state.signOutRequested = true;
+    state.messageOnSignedOut = message;
+    state.phase = 'signed-out';
+    state.busy = false;
+
+    blockInterface(true);
+    displayMessage(message);
+    resetLoginButton();
+
+    try {
+      if (state.auth) {
+        await state.auth.signOut();
+      }
+    } catch (error) {
+      displayMessage(
+        'La aplicación está bloqueada. ' +
+        'Recargue antes de iniciar otra sesión.'
+      );
+    }
+  }
+
+  /**
+   * Guarda únicamente el correo cuando el usuario lo solicita.
+   *
+   * @param {AgClientProfile} profile
+   * @returns {void}
+   */
+  function rememberEmail(profile) {
+    try {
+      const remember = input('remember-login');
+
+      if (
+        remember &&
+        remember.checked &&
+        typeof profile.email === 'string'
+      ) {
+        localStorage.setItem(
+          'ag_operations_email',
+          profile.email
+        );
+      } else {
+        localStorage.removeItem('ag_operations_email');
+      }
+    } catch (error) {
+      // El almacenamiento opcional no determina la autorización.
+    }
+  }
+
+  /**
+   * @returns {void}
+   */
+  function loadRememberedEmail() {
+    try {
+      const saved = localStorage.getItem(
+        'ag_operations_email'
+      );
+
+      const email = input('login-email');
+      const remember = input('remember-login');
+
+      if (
+        saved &&
+        saved.length <= 254 &&
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(saved) &&
+        email
+      ) {
+        email.value = saved;
+
+        if (remember) {
+          remember.checked = true;
+        }
+      }
+    } catch (error) {
+      // El login funciona cuando localStorage está bloqueado.
+    }
+  }
+
+  /**
+   * Acredita cada token inicial o renovado mediante el servidor.
+   *
+   * @param {AgFirebaseClientUser|null} user
+   * @returns {Promise<void>}
+   */
+  async function handleTokenChanged(user) {
+    const epoch = ++state.epoch;
+
+    blockInterface(!user);
+
+    if (!user) {
+      state.phase = 'signed-out';
+      state.busy = state.submitActive;
+
+      displayMessage(state.messageOnSignedOut);
+      resetLoginButton();
+      return;
+    }
+
+    if (state.signOutRequested) {
+      state.phase = 'signed-out';
+      resetLoginButton();
+
+      try {
+        if (
+          state.auth &&
+          state.auth.currentUser &&
+          state.auth.currentUser.uid === user.uid
+        ) {
+          await state.auth.signOut();
+        }
+      } catch (error) {
+        displayMessage(
+          'La aplicación está bloqueada. ' +
+          'Recargue antes de iniciar otra sesión.'
+        );
+      }
+
+      return;
+    }
+
+    state.phase = 'verifying';
+
+    displayMessage('Verificando usuario...', true);
+    resetLoginButton();
+
+    try {
+      const idToken = await user.getIdToken();
+
+      if (!isCurrent(epoch, user)) {
+        return;
+      }
+
+      const profile = await verifyOnServer(idToken);
+
+      if (!isCurrent(epoch, user)) {
+        return;
+      }
+
+      if (!profile || profile.found !== true) {
+        const message =
+          profile && profile.code === 'ACCESS_DENIED'
+            ? messages.denied
+            : profile && (
+                profile.code === 'SERVICE_UNAVAILABLE' ||
+                profile.code === 'CONFIGURATION_ERROR'
+              )
+              ? messages.service
+              : messages.verify;
+
+        await rejectSession(message, epoch);
+        return;
+      }
+
+      if (
+        profile.uid !== user.uid ||
+        typeof profile.nombre !== 'string' ||
+        typeof profile.area !== 'string' ||
+        typeof profile.email !== 'string' ||
+        typeof profile.expiresAt !== 'number' ||
+        !Number.isFinite(profile.expiresAt) ||
+        profile.expiresAt <= Date.now()
+      ) {
+        await rejectSession(messages.verify, epoch);
+        return;
+      }
+
+      state.authorizedUid = profile.uid;
+      state.phase = 'authorized';
+      state.busy = false;
+      state.messageOnSignedOut = '';
+
+      const name = element('user-display-name');
+      const area = element('user-display-area');
+
+      if (name) {
+        name.textContent = profile.nombre;
+      }
+
+      if (area) {
+        area.textContent = profile.area;
+      }
+
+      const password = input('login-password');
+
+      if (password) {
+        password.value = '';
+      }
+
+      rememberEmail(profile);
+      displayMessage('');
+      resetLoginButton();
+
+      const overlay = element('login-overlay');
+
+      if (overlay) {
+        overlay.style.transition = 'opacity 0.4s ease';
+        overlay.style.opacity = '0';
+
+        state.fadeTimer = window.setTimeout(function () {
+          if (
+            isCurrent(epoch, user) &&
+            state.phase === 'authorized'
+          ) {
+            overlay.style.display = 'none';
+          }
+
+          state.fadeTimer = null;
+        }, 400);
+      }
+
+      /*
+       * Bloquea al vencer el token acreditado.
+       * Una renovación requiere otra comprobación del servidor.
+       */
+      state.expiryTimer = window.setTimeout(function () {
+        if (!isCurrent(epoch, user)) {
+          return;
+        }
+
+        state.phase = 'verifying';
+
+        blockInterface(false);
+        displayMessage('Verificando usuario...', true);
+        resetLoginButton();
+
+        user.getIdToken(true).catch(function () {
+          return rejectSession(messages.verify, epoch);
+        });
+      }, Math.max(0, profile.expiresAt - Date.now()));
+
+      document.dispatchEvent(
+        new CustomEvent('ag:authenticated', {
+          detail: Object.freeze({
+            nombre: profile.nombre,
+            area: profile.area,
+            email: profile.email,
+            uid: profile.uid
+          })
+        })
+      );
+
+    } catch (error) {
+      if (isCurrent(epoch, user)) {
+        await rejectSession(messages.service, epoch);
+      }
+    }
+  }
+
+  /**
+   * Inicia Firebase Auth sin persistir la sesión entre cargas.
+   * Una sesión restaurada no desbloquea la aplicación.
+   *
+   * @returns {Promise<void>}
+   */
+  function initializeLoginAuth() {
+    if (state.initialization) {
+      return state.initialization;
+    }
+
+    state.initialization = (async function () {
+      state.phase = 'initializing';
+      resetLoginButton();
+
+      try {
+        state.auth = getLoginAuth();
+
+        await state.auth.setPersistence(
+          firebase.auth.Auth.Persistence.NONE
+        );
+
+        await state.auth.signOut();
+
+        state.auth.onIdTokenChanged(
+          function (user) {
+            void handleTokenChanged(user);
+          },
+          function () {
+            void rejectSession(
+              messages.verify,
+              state.epoch
+            );
+          }
+        );
+
+      } catch (error) {
+        state.phase = 'unavailable';
+
+        blockInterface(true);
+
+        displayMessage(
+          'El acceso no está disponible. Recargue la aplicación.'
+        );
+
+        resetLoginButton();
+
+        throw new Error(messages.service);
+      }
+    })();
+
+    return state.initialization;
+  }
+
+  /**
+   * Evita revelar si una cuenta existe o está deshabilitada.
+   *
+   * @param {unknown} error
+   * @returns {string}
+   */
+  function firebaseErrorMessage(error) {
+    const code =
+      error &&
+      typeof error === 'object' &&
+      'code' in error
+        ? error.code
+        : '';
+
+    if (code === 'auth/too-many-requests') {
+      return 'Demasiados intentos. Espere unos minutos.';
+    }
+
+    if (code === 'auth/network-request-failed') {
+      return 'No hay conexión. Inténtelo nuevamente.';
+    }
+
+    return messages.credentials;
+  }
+
+  /**
+   * Firebase valida la contraseña antes de consultar el servidor.
+   * La contraseña se utiliza exactamente como fue introducida.
+   *
+   * @param {Event} event
+   * @returns {Promise<void>}
+   */
+  async function handleLoginSubmit(event) {
+    event.preventDefault();
+
+    if (
+      state.busy ||
+      state.submitActive ||
+      state.phase === 'verifying'
+    ) {
+      return;
+    }
+
+    const email = input('login-email');
+    const passwordInput = input('login-password');
+
+    if (!email || !passwordInput) {
+      displayMessage(messages.service);
+      return;
+    }
+
+    if (!email.checkValidity()) {
+      email.reportValidity();
+      return;
+    }
+
+    if (!passwordInput.value) {
+      passwordInput.reportValidity();
+      return;
+    }
+
+    let password = passwordInput.value;
+    const intent = ++state.intent;
+
+    state.submitActive = true;
+    state.busy = true;
+    state.messageOnSignedOut = '';
+
+    displayMessage('Autenticando...', true);
+    resetLoginButton();
+
+    try {
+      await initializeLoginAuth();
+
+      if (state.intent !== intent) {
+        return;
+      }
+
+      if (!state.auth) {
+        throw new Error(messages.service);
+      }
+
+      state.signOutRequested = true;
+      state.epoch++;
+      state.phase = 'authenticating';
+
+      blockInterface(true);
+
+      await state.auth.signOut();
+
+      if (state.intent !== intent) {
+        return;
+      }
+
+      state.signOutRequested = false;
+      state.busy = true;
+      state.phase = 'authenticating';
+
+      resetLoginButton();
+
+      await state.auth.signInWithEmailAndPassword(
+        email.value.trim(),
+        password
+      );
+
+      /*
+       * El observador obtiene el token y consulta al servidor.
+       * Este resultado no desbloquea directamente la interfaz.
+       */
+
+    } catch (error) {
+      if (state.intent !== intent) {
+        return;
+      }
+
+      state.busy = false;
+
+      if (
+        state.phase !== 'authorized' &&
+        state.phase !== 'verifying'
+      ) {
+        state.phase = 'signed-out';
+        displayMessage(firebaseErrorMessage(error));
+      }
+
+    } finally {
+      password = '';
+      passwordInput.value = '';
+      state.submitActive = false;
+
+      if (
+        state.phase !== 'verifying' &&
+        state.phase !== 'authorized'
+      ) {
+        state.busy = false;
+      }
+
+      resetLoginButton();
+    }
+  }
+
+  /**
+   * @returns {void}
+   */
+  function togglePasswordVisibility() {
+    const password = input('login-password');
+    const button = element('toggle-password');
+
+    if (!password) {
+      return;
+    }
+
+    const show = password.type === 'password';
+
+    password.type = show ? 'text' : 'password';
+
+    if (button) {
+      button.setAttribute(
+        'aria-label',
+        show ? 'Ocultar contraseña' : 'Mostrar contraseña'
+      );
+
+      button.style.color = show
+        ? '#231E54'
+        : '#3E58B0';
+    }
+  }
+
+  /**
+   * Solicita recuperación sin revelar la existencia de la cuenta.
+   *
+   * @returns {Promise<void>}
+   */
+  async function handleForgotPassword() {
+    const email = input('login-email');
+
+    if (!email || !email.checkValidity()) {
+      if (email) {
+        email.reportValidity();
+        email.focus();
+      }
+
+      return;
+    }
+
+    displayMessage(
+      'Enviando correo de recuperación...',
+      true
+    );
+
+    try {
+      await initializeLoginAuth();
+
+      if (!state.auth) {
+        throw new Error(messages.service);
+      }
+
+      await state.auth.sendPasswordResetEmail(
+        email.value.trim()
+      );
+
+      displayMessage(messages.recovery, true);
+
+    } catch (error) {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 'auth/user-not-found'
+      ) {
+        displayMessage(messages.recovery, true);
+      } else {
+        displayMessage(
+          'No fue posible procesar la recuperación. ' +
+          'Inténtelo nuevamente.'
+        );
+      }
+    }
+  }
+
+  /**
+   * Invalida la autorización antes de cerrar la sesión Firebase.
+   *
+   * @returns {Promise<void>}
+   */
+  async function executeLogout() {
+    const epoch = ++state.epoch;
+
+    state.intent++;
+    state.signOutRequested = true;
+    state.phase = 'signed-out';
+    state.busy = false;
+    state.messageOnSignedOut = '';
+
+    blockInterface(true);
+    displayMessage('');
+    resetLoginButton();
+
+    try {
+      await initializeLoginAuth();
+
+      if (state.auth) {
+        await state.auth.signOut();
+      }
+
+    } catch (error) {
+      if (
+        state.epoch === epoch ||
+        state.signOutRequested
+      ) {
+        displayMessage(
+          'La aplicación está bloqueada. ' +
+          'Recargue antes de iniciar otra sesión.'
+        );
+      }
+    }
+  }
+
+  /**
+   * Ejecuta funciones con contrato servidor(idToken, ...args).
+   *
+   * Cada función del servidor debe ejecutar
+   * agLoginRequerirUsuario_(idToken) antes de acceder a datos.
+   *
+   * @template T
+   * @param {string} serverFunction
+   * @param {...unknown} args
+   * @returns {Promise<T>}
+   */
+  async function agRunAuthenticated(serverFunction, ...args) {
+    if (
+      !/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(serverFunction) ||
+      serverFunction.endsWith('_')
+    ) {
+      throw new Error('Función no permitida.');
+    }
+
+    await initializeLoginAuth();
+
+    const user = state.auth && state.auth.currentUser;
+
+    if (
+      !user ||
+      state.phase !== 'authorized' ||
+      state.authorizedUid !== user.uid ||
+      state.signOutRequested
+    ) {
+      throw new Error(messages.verify);
+    }
+
+    const epoch = state.epoch;
+    const idToken = await user.getIdToken();
+
+    if (
+      !isCurrent(epoch, user) ||
+      state.phase !== 'authorized' ||
+      state.authorizedUid !== user.uid
+    ) {
+      throw new Error(messages.verify);
+    }
+
+    return new Promise(function (resolve, reject) {
+      const runner = google.script.run
+        .withSuccessHandler(function (result) {
+          if (
+            !isCurrent(epoch, user) ||
+            state.phase !== 'authorized' ||
+            state.authorizedUid !== user.uid
+          ) {
+            reject(new Error(messages.verify));
+            return;
+          }
+
+          resolve(result);
+        })
+        .withFailureHandler(function (error) {
+          const authFailure =
+            error &&
+            typeof error.message === 'string' &&
+            error.message.includes('AG_AUTH_REQUIRED');
+
+          if (
+            authFailure &&
+            isCurrent(epoch, user)
+          ) {
+            void rejectSession(
+              messages.verify,
+              epoch
+            );
+          }
+
+          reject(
+            new Error(
+              authFailure
+                ? messages.verify
+                : 'No fue posible completar la operación.'
+            )
+          );
+        });
+
+      runner[serverFunction](idToken, ...args);
+    });
+  }
+
+  window.AGLogin = Object.freeze({
+    initialize: initializeLoginAuth,
+    logout: executeLogout,
+    run: agRunAuthenticated,
+
+    isAuthorized: function () {
+      return (
+        state.phase === 'authorized' &&
+        !state.signOutRequested &&
+        !!state.auth &&
+        !!state.auth.currentUser &&
+        state.authorizedUid === state.auth.currentUser.uid
+      );
+    }
+  });
+
+  window.getLoginAuth = getLoginAuth;
+  window.initializeLoginAuth = initializeLoginAuth;
+  window.handleLoginSubmit = handleLoginSubmit;
+  window.handleForgotPassword = handleForgotPassword;
+  window.togglePasswordVisibility = togglePasswordVisibility;
+  window.resetLoginButton = resetLoginButton;
+  window.executeLogout = executeLogout;
+  window.agRunAuthenticated = agRunAuthenticated;
+
+  /**
+   * Espera que el documento contenga el formulario y el dashboard.
+   *
+   * @returns {void}
+   */
+  function start() {
+    loadRememberedEmail();
+
+    void initializeLoginAuth().catch(function () {
+      // La inicialización ya presentó el error y bloqueó el acceso.
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener(
+      'DOMContentLoaded',
+      start,
+      { once: true }
+    );
+  } else {
+    start();
+  }
+})();
+</script>
