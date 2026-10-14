@@ -1,0 +1,2506 @@
+/* =========================================================
+
+     REGISTRAR PROVISIÓN
+
+     ========================================================= */
+
+  function openRegisterModal() {
+
+    resetRegisterForm();
+
+    ensureProvidersLoaded(
+
+      function () {
+
+        openModal('register');
+
+        setTimeout(
+
+          function () {
+
+            el[
+
+              'rp-register-reference'
+
+            ].focus();
+
+          },
+
+          80
+
+        );
+
+      }
+
+    );
+
+  }
+
+/** @param {{quiet?:boolean}=} options @returns {void} */
+function searchRegisterOperation(options) {
+  const reference = normalizeReference(el['rp-register-reference'].value);
+  el['rp-register-reference'].value = reference;
+  if (!/^(AGM|AGX)\d{4}$/.test(reference)) { showToast('La referencia debe ser AGM + 4 números o AGX + 4 números.','error'); return; }
+  const request = state.operationLookupSeq = (state.operationLookupSeq || 0) + 1;
+  showLoading('Consultando operación...');
+  rp_rpc().withSuccessHandler(function(response) {
+    if (request !== state.operationLookupSeq || normalizeReference(el['rp-register-reference'].value) !== reference) return;
+    hideLoading();
+    if (!response || response.ok !== true) { showToast('No fue posible consultar la operación.','error'); return; }
+    if (!response.existe) {
+      state.currentOperation = null;
+      el['rp-register-summary'].hidden = true;
+      showConfirm({title:'Operación no registrada',message:'La referencia '+reference+' no existe en OPERACIONES_REGISTRADAS. ¿Deseas registrarla ahora?',confirmText:'Registrar operación',onConfirm:function() { prepareNewOperation(reference); }});
+      return;
+    }
+    setRegisterOperation(response.operacion);
+    if (!response.operacion.cliente || !response.operacion.blGuia || (response.operacion.do && !/^\d{9}$/.test(response.operacion.do))) {
+      showToast('Completa o corrige los datos de la operación antes de guardar la provisión.','error');
+      return;
+    }
+    if (response.tieneProvisionesActivas && !(options && options.quiet)) {
+      showConfirm({title:'Operación ya provisionada',message:'La referencia '+reference+' ya tiene '+response.cantidadProvisionesActivas+' provisión(es) activa(s). Puedes editar los costos existentes, modificar la ETA/ETD o agregar nuevos proveedores.',confirmText:'Editar provisión',onConfirm:function() {
+        state.registerDirty = false; resetRegisterForm(); closeModal('register',true); openEditModal(reference);
+      }});
+    }
+  }).withFailureHandler(function(error) { if(request === state.operationLookupSeq) handleServerError(error); }).rpBuscarOperacion(reference);
+}
+
+/** @param {RoClientOperation} operation @returns {void} */
+function setRegisterOperation(operation) {
+  state.currentOperation = operation;
+  el['rp-register-reference'].value = operation.referenciaAg;
+  el['rp-register-summary-ref'].textContent = operation.referenciaAg;
+  el['rp-register-summary-client'].textContent = operation.cliente || 'Pendiente';
+  el['rp-register-summary-do'].textContent = operation.do || 'Pendiente';
+  el['rp-register-summary-bl'].textContent = operation.blGuia || 'Pendiente';
+  el['rp-register-summary'].hidden = false;
+  el['rp-register-lines'].hidden = false;
+  el['rp-register-do-warning'].classList.toggle('is-visible',!operation.tieneDo);
+  if (!el['rp-register-rows'].children.length) addProvisionRow(el['rp-register-rows'],null,'register');
+  markRegisterDirty();
+}
+
+  function resetRegisterForm() {
+
+    state.operationLookupSeq = (state.operationLookupSeq || 0) + 1;
+    state.currentOperation = null;
+
+    state.registerDirty = false;
+
+    sessionStorage.removeItem(
+
+      STORAGE_DRAFT
+
+    );
+
+    sessionStorage.removeItem(
+
+      STORAGE_RESTORE
+
+    );
+
+    el[
+
+  'rp-register-reference'
+
+  ].value = '';
+
+    el[
+
+  'rp-register-report-date'
+
+    ].value = '';
+
+    el[
+
+  'rp-register-eta'
+
+    ].value = '';
+
+    el[
+
+      'rp-register-summary'
+
+    ].hidden = true;
+
+    el[
+
+      'rp-register-lines'
+
+    ].hidden = true;
+
+    el[
+
+      'rp-register-do-warning'
+
+    ].classList.remove(
+
+      'is-visible'
+
+    );
+
+    el[
+
+      'rp-register-rows'
+
+    ].innerHTML = '';
+
+  }
+
+  function addProvisionRow(
+
+    tbody,
+
+    data,
+
+    mode
+
+  ) {
+
+    const row =
+
+      document.createElement(
+
+        'tr'
+
+      );
+
+    const item =
+
+      data || {};
+
+    if (
+
+      item.filaHoja
+
+    ) {
+
+      row.dataset.rowSheet =
+
+        String(
+
+          item.filaHoja
+
+        );
+
+    }
+
+    row.innerHTML =
+
+      '<td>' +
+
+        '<input ' +
+
+          'type="text" ' +
+
+          'class="rp-provider-input" ' +
+
+          'list="rp-provider-list" ' +
+
+          'autocomplete="off" ' +
+
+          'placeholder="Buscar proveedor" ' +
+
+          'value="' +
+
+          escapeAttribute(
+
+            item.proveedor || ''
+
+          ) +
+
+        '">' +
+
+      '</td>' +
+
+      '<td>' +
+
+        moneyInputHtml(
+
+          'usd',
+
+          item.usd
+
+        ) +
+
+      '</td>' +
+
+      '<td>' +
+
+        moneyInputHtml(
+
+          'eur',
+
+          item.eur
+
+        ) +
+
+      '</td>' +
+
+      '<td>' +
+
+        moneyInputHtml(
+
+          'cop',
+
+          item.cop
+
+        ) +
+
+      '</td>' +
+
+      '<td>' +
+
+        '<textarea ' +
+
+          'class="rp-observation-input" ' +
+
+          'placeholder="Mencione a qué corresponden esos valores">' +
+
+          escapeHtml(
+
+            item.observaciones || ''
+
+          ) +
+
+        '</textarea>' +
+
+      '</td>' +
+
+      '<td>' +
+
+        '<button ' +
+
+          'type="button" ' +
+
+          'class="rp-row-remove" ' +
+
+          'data-mode="' +
+
+          mode +
+
+          '" ' +
+
+          'title="Quitar proveedor">' +
+
+          '×' +
+
+        '</button>' +
+
+      '</td>';
+
+    tbody.appendChild(row);
+
+  }
+
+  function moneyInputHtml(
+
+    currency,
+
+    value
+
+  ) {
+
+    const number =
+
+      Number(value) || 0;
+
+    return (
+
+      '<input ' +
+
+        'type="text" ' +
+
+        'class="rp-money-input" ' +
+
+        'data-currency="' +
+
+        currency +
+
+        '" ' +
+
+        'inputmode="decimal" ' +
+
+        'autocomplete="off" ' +
+
+        'data-raw="' +
+
+        (
+
+          number > 0
+
+            ? number
+
+            : ''
+
+        ) +
+
+        '" ' +
+
+        'value="' +
+
+        (
+
+          number > 0
+
+            ? escapeAttribute(
+
+                moneyFormatter.format(
+
+                  number
+
+                )
+
+              )
+
+            : ''
+
+        ) +
+
+      '">'
+
+    );
+
+  }
+
+function collectRows(
+
+  tbody
+
+) {
+
+  const etaEtd =
+
+    tbody.id === 'rp-edit-rows'
+
+      ? el['rp-edit-eta'].value
+
+      : el['rp-register-eta'].value;
+
+  return Array.from(
+
+    tbody.querySelectorAll('tr')
+
+  ).map(function (row) {
+
+    return {
+
+      filaHoja:
+
+        row.dataset.rowSheet
+
+          ? Number(
+
+              row.dataset.rowSheet
+
+            )
+
+          : null,
+
+      proveedor:
+
+        row.querySelector(
+
+          '.rp-provider-input'
+
+        ).value.trim(),
+
+      etaEtd:
+
+        etaEtd,
+
+      usd:
+
+        getMoneyValue(
+
+          row.querySelector(
+
+            '[data-currency="usd"]'
+
+          )
+
+        ),
+
+      eur:
+
+        getMoneyValue(
+
+          row.querySelector(
+
+            '[data-currency="eur"]'
+
+          )
+
+        ),
+
+      cop:
+
+        getMoneyValue(
+
+          row.querySelector(
+
+            '[data-currency="cop"]'
+
+          )
+
+        ),
+
+      observaciones:
+
+        row.querySelector(
+
+          '.rp-observation-input'
+
+        ).value.trim()
+
+    };
+
+  });
+
+}
+
+  function validateProvisionRows(
+
+    rows
+
+  ) {
+
+    if (!rows.length) {
+
+      return (
+
+        'Debe registrar por lo menos un proveedor.'
+
+      );
+
+    }
+
+    let eta = '';
+
+    for (
+
+      let i = 0;
+
+      i < rows.length;
+
+      i += 1
+
+    ) {
+
+      const row = rows[i];
+
+      if (!row.proveedor) {
+
+        return (
+
+          'Fila ' +
+
+          (i + 1) +
+
+          ': seleccione un proveedor.'
+
+        );
+
+      }
+
+      if (!eta) {
+
+        eta = row.etaEtd;
+
+      }
+
+      if (
+
+        row.etaEtd !== eta
+
+      ) {
+
+        return (
+
+          'Todas las filas de una misma operación deben tener la misma ETA/ETD.'
+
+        );
+
+      }
+
+      if (
+
+        row.usd < 0 ||
+
+        row.eur < 0 ||
+
+        row.cop < 0
+
+      ) {
+
+        return (
+
+          'Los valores no pueden ser negativos.'
+
+        );
+
+      }
+
+      if (
+
+        row.usd <= 0 &&
+
+        row.eur <= 0 &&
+
+        row.cop <= 0
+
+      ) {
+
+        return (
+
+          'Fila ' +
+
+          (i + 1) +
+
+          ': registre al menos un valor mayor que cero.'
+
+        );
+
+      }
+
+    }
+
+    return '';
+
+  }
+
+  function saveProvision(
+
+    keepOpen,
+
+    forceDuplicates
+
+  ) {
+
+    if (!state.currentOperation) {
+
+      showToast(
+
+        'Primero consulta una Referencia AG válida.',
+
+        'error'
+
+      );
+
+      return;
+
+    }
+
+    const rows =
+
+      collectRows(
+
+        el['rp-register-rows']
+
+      );
+
+    const validation =
+
+      validateProvisionRows(rows);
+
+    if (validation) {
+
+      showToast(
+
+        validation,
+
+        'error'
+
+      );
+
+      return;
+
+    }
+
+    showLoading(
+
+      'Guardando provisión...'
+
+    );
+
+    rp_rpc()
+
+      .withSuccessHandler(
+
+        function (response) {
+
+          hideLoading();
+
+          if (response && response.codigo === 'OPERACION_INCOMPLETA') {
+            void repairProvisionOperation('register', {completeMissing: true});
+            return;
+          }
+
+          if (
+
+            response &&
+
+            response.requiereConfirmacionDuplicado
+
+          ) {
+
+            showConfirm({
+
+              title:
+
+                'Posible duplicado',
+
+              message:
+
+                'Existe una provisión similar registrada. ' +
+
+                'Puedes continuar si corresponde realmente ' +
+
+                'a un pago diferente.',
+
+              confirmText:
+
+                'Guardar de todas formas',
+
+              onConfirm:
+
+                function () {
+
+                  saveProvision(
+
+                    keepOpen,
+
+                    true
+
+                  );
+
+                }
+
+            });
+
+            return;
+
+          }
+
+          if (
+
+            !response ||
+
+            response.ok !== true
+
+          ) {
+
+            showToast(
+
+              response &&
+
+              response.mensaje
+
+                ? response.mensaje
+
+                : 'No fue posible guardar.',
+
+              'error'
+
+            );
+
+            return;
+
+          }
+
+          showToast(
+
+            response.mensaje ||
+
+            'Provisión registrada.',
+
+            'success'
+
+          );
+
+          state.registerDirty = false;
+
+          sessionStorage.removeItem(
+
+            STORAGE_DRAFT
+
+          );
+
+          sessionStorage.removeItem(
+
+            STORAGE_RESTORE
+
+          );
+
+          if (keepOpen) {
+
+            resetRegisterForm();
+
+            setTimeout(
+
+              function () {
+
+                el[
+
+                  'rp-register-reference'
+
+                ].focus();
+
+              },
+
+              80
+
+            );
+
+          } else {
+
+            closeModal(
+
+              'register',
+
+              true
+
+            );
+
+          }
+
+          loadDashboard(
+
+            state.periodSelection
+
+          );
+
+        }
+
+      )
+
+      .withFailureHandler(
+
+        handleServerError
+
+      )
+
+        .rpGuardarProvisiones({
+
+  referenciaAg:
+
+    state.currentOperation
+
+      .referenciaAg,
+
+  operationVersion: state.currentOperation.version,
+
+  fechaReporteHistorica:
+
+    el[
+
+      'rp-register-report-date'
+
+    ].value || '',
+
+  confirmarDuplicados:
+
+    forceDuplicates === true,
+
+  filas: rows
+
+});
+
+  }
+
+  /* =========================================================
+
+     OPERACIÓN NUEVA
+
+     ========================================================= */
+
+  function prepareNewOperation(
+
+    reference
+
+  ) {
+
+    ensureClientsLoaded(
+
+      function () {
+
+        el[
+
+          'rp-operation-reference'
+
+        ].value = reference;
+
+        el[
+
+          'rp-operation-client'
+
+        ].value = '';
+
+        el[
+
+          'rp-operation-bl'
+
+        ].value = '';
+
+        el[
+
+          'rp-operation-do'
+
+        ].value = '';
+
+        toggleOperationDoWarning();
+
+        openModal('operation');
+
+      }
+
+    );
+
+  }
+
+  function saveNewOperation() {
+
+    const reference =
+
+      normalizeReference(
+
+        el[
+
+          'rp-operation-reference'
+
+        ].value
+
+      );
+
+    const client =
+
+      el[
+
+        'rp-operation-client'
+
+      ].value;
+
+    const bl =
+
+      el[
+
+        'rp-operation-bl'
+
+      ].value.trim();
+
+    const doValue =
+
+      el[
+
+        'rp-operation-do'
+
+      ].value.trim();
+
+    if (!client) {
+
+      showToast(
+
+        'Seleccione un cliente.',
+
+        'error'
+
+      );
+
+      return;
+
+    }
+
+    if (!bl) {
+
+      showToast(
+
+        'El BL o Guía de referencia es obligatorio.',
+
+        'error'
+
+      );
+
+      return;
+
+    }
+
+    if (
+
+      doValue &&
+
+      !/^\d{9}$/.test(doValue)
+
+    ) {
+
+      showToast(
+
+        'El D.O. debe contener exactamente 9 números.',
+
+        'error'
+
+      );
+
+      return;
+
+    }
+
+    const continueSave =
+
+      function () {
+
+        showLoading(
+
+          'Registrando operación...'
+
+        );
+
+        rp_rpc()
+
+          .withSuccessHandler(
+
+            function (response) {
+
+              hideLoading();
+
+              if (
+
+                !response ||
+
+                response.ok !== true
+
+              ) {
+
+                showToast(
+
+                  response &&
+
+                  response.mensaje
+
+                    ? response.mensaje
+
+                    : 'No fue posible registrar la operación.',
+
+                  'error'
+
+                );
+
+                return;
+
+              }
+
+              closeModal(
+
+                'operation',
+
+                true
+
+              );
+
+              searchRegisterOperation({quiet:true});
+
+              showToast(
+
+                'Operación registrada correctamente.',
+
+                'success'
+
+              );
+
+            }
+
+          )
+
+          .withFailureHandler(
+
+            handleServerError
+
+          )
+
+          .rpCrearOperacion({
+
+            referenciaAg:
+
+              reference,
+
+            cliente:
+
+              client,
+
+            blGuia:
+
+              bl,
+
+            do:
+
+              doValue
+
+          });
+
+      };
+
+    if (!doValue) {
+
+      showConfirm({
+
+        title:
+
+          'D.O. pendiente',
+
+        message:
+
+          'La operación se registrará sin D.O. ' +
+
+          'y podrá provisionarse normalmente. ' +
+
+          'Recuerda asignarlo prontamente.',
+
+        confirmText:
+
+          'Registrar sin D.O.',
+
+        onConfirm:
+
+          continueSave
+
+      });
+
+      return;
+
+    }
+
+    continueSave();
+
+  }
+
+  function toggleOperationDoWarning() {
+
+    const hasDo =
+
+      Boolean(
+
+        el[
+
+          'rp-operation-do'
+
+        ].value.trim()
+
+      );
+
+    el[
+
+      'rp-operation-do-warning'
+
+    ].classList.toggle(
+
+      'is-visible',
+
+      !hasDo
+
+    );
+
+  }
+
+  /* =========================================================
+
+     EDICIÓN
+
+     ========================================================= */
+
+  function openEditModal(
+
+    reference
+
+  ) {
+
+    ensureProvidersLoaded(
+
+      function () {
+
+        showLoading(
+
+          'Cargando provisión...'
+
+        );
+
+        rp_rpc()
+
+          .withSuccessHandler(
+
+            function (response) {
+
+              hideLoading();
+
+              if (
+
+                !response ||
+
+                response.ok !== true
+
+              ) {
+
+                showToast(
+
+                  'No fue posible cargar la provisión.',
+
+                  'error'
+
+                );
+
+                return;
+
+              }
+
+              state.editOperation = response.operacion;
+              state.editingReference =
+
+                reference;
+
+              state.editDirty = false;
+
+              el['rp-edit-ref']
+
+                .textContent =
+
+                  response.operacion
+
+                    .referenciaAg;
+
+              el['rp-edit-client']
+
+                .textContent =
+
+                  response.operacion
+
+                    .cliente;
+
+              el['rp-edit-do']
+
+                .textContent =
+
+                  response.operacion.do ||
+
+                  'Pendiente';
+
+              el['rp-edit-rows']
+
+                .innerHTML = '';
+
+              const rows =
+
+                response.filasActivas || [];
+
+                el[
+
+  'rp-edit-eta'
+
+].value =
+
+  rows.length
+
+    ? rows[0].etaEtd || ''
+
+    : '';
+
+              rows.forEach(
+
+                function (row) {
+
+                  addProvisionRow(
+
+                    el['rp-edit-rows'],
+
+                    row,
+
+                    'edit'
+
+                  );
+
+                }
+
+              );
+
+              openModal('edit');
+
+            }
+
+          )
+
+          .withFailureHandler(
+
+            handleServerError
+
+          )
+
+          .rpObtenerDetalleOperacion(
+
+            reference
+
+          );
+
+      }
+
+    );
+
+  }
+
+  function saveEdit(
+
+    forceDuplicates
+
+  ) {
+
+    const rows =
+
+      collectRows(
+
+        el['rp-edit-rows']
+
+      );
+
+    const validation =
+
+      validateProvisionRows(rows);
+
+    if (validation) {
+
+      showToast(
+
+        validation,
+
+        'error'
+
+      );
+
+      return;
+
+    }
+
+    showLoading(
+
+      'Guardando cambios...'
+
+    );
+
+    rp_rpc()
+
+      .withSuccessHandler(
+
+        function (response) {
+
+          hideLoading();
+
+          if (response && response.codigo === 'OPERACION_INCOMPLETA') {
+            void repairProvisionOperation('edit', {completeMissing: true});
+            return;
+          }
+
+          if (
+
+            response &&
+
+            response.requiereConfirmacionDuplicado
+
+          ) {
+
+            showConfirm({
+
+              title:
+
+                'Posible duplicado',
+
+              message:
+
+                'Existe una provisión similar registrada. ' +
+
+                'Confirma que deseas continuar.',
+
+              confirmText:
+
+                'Guardar cambios',
+
+              onConfirm:
+
+                function () {
+
+                  saveEdit(true);
+
+                }
+
+            });
+
+            return;
+
+          }
+
+          if (
+
+            !response ||
+
+            response.ok !== true
+
+          ) {
+
+            showToast(
+
+              response &&
+
+              response.mensaje
+
+                ? response.mensaje
+
+                : 'No fue posible actualizar.',
+
+              'error'
+
+            );
+
+            return;
+
+          }
+
+          state.editDirty = false;
+
+          closeModal(
+
+            'edit',
+
+            true
+
+          );
+
+          showToast(
+
+            response.mensaje ||
+
+            'Provisión actualizada.',
+
+            'success'
+
+          );
+
+          loadDashboard(
+
+            state.periodSelection
+
+          );
+
+        }
+
+      )
+
+      .withFailureHandler(
+
+        handleServerError
+
+      )
+
+      .rpActualizarProvisiones({
+
+        referenciaAg:
+
+          state.editingReference,
+
+        operationVersion: state.editOperation && state.editOperation.version,
+
+        confirmarDuplicados:
+
+          forceDuplicates === true,
+
+        filas:
+
+          rows
+
+      });
+
+  }
+
+  function requestAnnul() {
+
+    if (
+
+      !state.editingReference
+
+    ) {
+
+      return;
+
+    }
+
+    showConfirm({
+
+      title:
+
+        'Anular provisión',
+
+      message:
+
+        'La información no se borrará. ' +
+
+        'Las filas permanecerán en el historial ' +
+
+        'marcadas como ANULADA.',
+
+      confirmText:
+
+        'Anular provisión',
+
+      onConfirm:
+
+        function () {
+
+          showLoading(
+
+            'Anulando provisión...'
+
+          );
+
+          rp_rpc()
+
+            .withSuccessHandler(
+
+              function (response) {
+
+                hideLoading();
+
+                state.editDirty =
+
+                  false;
+
+                closeModal(
+
+                  'edit',
+
+                  true
+
+                );
+
+                showToast(
+
+                  response.mensaje ||
+
+                  'Provisión anulada.',
+
+                  'success'
+
+                );
+
+                loadDashboard(
+
+                  state.periodSelection
+
+                );
+
+              }
+
+            )
+
+            .withFailureHandler(
+
+              handleServerError
+
+            )
+
+            .rpAnularOperacionProvisionada(
+
+              state.editingReference
+
+            );
+
+        }
+
+    });
+
+  }
+
+  /* =========================================================
+
+     PROVEEDORES / CLIENTES
+
+     ========================================================= */
+
+  function ensureProvidersLoaded(
+
+    callback
+
+  ) {
+
+    if (
+
+      Array.isArray(
+
+        state.providers
+
+      )
+
+    ) {
+
+      callback();
+
+      return;
+
+    }
+
+    showLoading(
+
+      'Cargando proveedores...'
+
+    );
+
+    rp_rpc()
+
+      .withSuccessHandler(
+
+        function (response) {
+
+          hideLoading();
+
+          state.providers =
+
+            response.proveedores || [];
+
+          renderProviderDatalist();
+
+          callback();
+
+        }
+
+      )
+
+      .withFailureHandler(
+
+        handleServerError
+
+      )
+
+      .rpObtenerProveedoresActivos();
+
+  }
+
+  function renderProviderDatalist() {
+
+    el['rp-provider-list']
+
+      .innerHTML =
+
+        state.providers.map(
+
+          function (provider) {
+
+            return (
+
+              '<option value="' +
+
+              escapeAttribute(
+
+                provider.nombre
+
+              ) +
+
+              '"></option>'
+
+            );
+
+          }
+
+        ).join('');
+
+  }
+
+  function ensureClientsLoaded(
+
+    callback
+
+  ) {
+
+    if (
+
+      Array.isArray(
+
+        state.clients
+
+      )
+
+    ) {
+
+      renderClientSelect();
+
+      callback();
+
+      return;
+
+    }
+
+    showLoading(
+
+      'Cargando clientes...'
+
+    );
+
+    rp_rpc()
+
+      .withSuccessHandler(
+
+        function (response) {
+
+          hideLoading();
+
+          state.clients =
+
+            response.clientes || [];
+
+          renderClientSelect();
+
+          callback();
+
+        }
+
+      )
+
+      .withFailureHandler(
+
+        handleServerError
+
+      )
+
+      .rpObtenerClientesActivos();
+
+  }
+
+  function renderClientSelect() {
+
+    const options =
+
+      state.clients.map(
+
+        function (client) {
+
+          return (
+
+            '<option value="' +
+
+            escapeAttribute(
+
+              client.nombre
+
+            ) +
+
+            '">' +
+
+            escapeHtml(
+
+              client.nombre
+
+            ) +
+
+            '</option>'
+
+          );
+
+        }
+
+      ).join('');
+
+    el['rp-operation-client']
+
+      .innerHTML =
+
+        '<option value="">' +
+
+          'Seleccione...' +
+
+        '</option>' +
+
+        options;
+
+  }
+
+  /* =========================================================
+
+     CREAR PROVEEDOR EN MÓDULO 02
+
+     ========================================================= */
+
+function openProviderModule() {
+
+  saveRegisterDraft();
+
+  sessionStorage.setItem(
+
+    STORAGE_RESTORE,
+
+    '1'
+
+  );
+
+  sessionStorage.setItem(
+
+    'AG_RP_FROM_PROVISIONS',
+
+    '1'
+
+  );
+
+  if (
+
+    typeof window.openModule !==
+
+    'function'
+
+  ) {
+
+    showToast(
+
+      'No fue posible abrir el módulo de proveedores.',
+
+      'error'
+
+    );
+
+    return;
+
+  }
+
+  openModule(
+
+    'ClientesProveedoresfront',
+
+    'Clientes y proveedores'
+
+  );
+
+}
+
+  /* =========================================================
+
+     BORRADOR TEMPORAL
+
+     ========================================================= */
+
+  function markRegisterDirty() {
+
+    state.registerDirty = true;
+
+    saveRegisterDraft();
+
+  }
+
+  function saveRegisterDraft() {
+
+    if (
+
+      !el[
+
+        'rp-modal-register'
+
+      ].classList.contains(
+
+        'is-open'
+
+      )
+
+    ) {
+
+      return;
+
+    }
+
+    const draft = {
+
+  reference:
+
+    el[
+
+      'rp-register-reference'
+
+    ].value,
+
+  operation:
+
+    state.currentOperation,
+
+  reportDate:
+
+    el[
+
+      'rp-register-report-date'
+
+    ].value || '',
+
+  etaEtd:
+
+    el[
+
+      'rp-register-eta'
+
+    ].value || '',
+
+  rows:
+
+    collectRows(
+
+      el[
+
+        'rp-register-rows'
+
+      ]
+
+    )
+
+};
+
+    sessionStorage.setItem(
+
+      STORAGE_DRAFT,
+
+      JSON.stringify(draft)
+
+    );
+
+  }
+
+  function handleDraftRestore() {
+
+    const shouldRestore =
+
+      sessionStorage.getItem(
+
+        STORAGE_RESTORE
+
+      ) === '1';
+
+    if (!shouldRestore) {
+
+      sessionStorage.removeItem(
+
+        STORAGE_DRAFT
+
+      );
+
+      sessionStorage.removeItem(
+
+        STORAGE_RESTORE
+
+      );
+
+      return;
+
+    }
+
+    const raw =
+
+      sessionStorage.getItem(
+
+        STORAGE_DRAFT
+
+      );
+
+    if (!raw) {
+
+      return;
+
+    }
+
+    try {
+
+      state.pendingRestoreDraft =
+
+        JSON.parse(raw);
+
+    } catch (ignore) {
+
+      sessionStorage.removeItem(
+
+        STORAGE_DRAFT
+
+      );
+
+    }
+
+  }
+
+      function restoreDraftIfAvailable() {
+
+  const draft =
+
+    state.pendingRestoreDraft;
+
+  if (!draft) {
+
+    return;
+
+  }
+
+  state.pendingRestoreDraft =
+
+    null;
+
+  /*
+
+   * Forzamos recarga real de proveedores.
+
+   * Esto evita reutilizar la lista anterior.
+
+   */
+
+  state.providers = null;
+
+  ensureProvidersLoaded(
+
+    function () {
+
+      openModal('register');
+
+      el[
+
+        'rp-register-reference'
+
+      ].value =
+
+        draft.reference || '';
+
+      el[
+
+        'rp-register-report-date'
+
+      ].value =
+
+        draft.reportDate || '';
+
+      el[
+
+        'rp-register-eta'
+
+      ].value =
+
+        draft.etaEtd || '';
+
+      if (
+
+        draft.operation
+
+      ) {
+
+        setRegisterOperation(
+
+          draft.operation
+
+        );
+
+      }
+
+      el[
+
+        'rp-register-rows'
+
+      ].innerHTML = '';
+
+      (
+
+        draft.rows || []
+
+      ).forEach(
+
+        function (row) {
+
+          addProvisionRow(
+
+            el['rp-register-rows'],
+
+            row,
+
+            'register'
+
+          );
+
+        }
+
+      );
+
+      if (
+
+        !(draft.rows || []).length &&
+
+        draft.operation
+
+      ) {
+
+        addProvisionRow(
+
+          el['rp-register-rows'],
+
+          null,
+
+          'register'
+
+        );
+
+      }
+
+      if (draft.reference) searchRegisterOperation({quiet:true});
+      state.registerDirty = true;
+
+      sessionStorage.removeItem(
+
+        STORAGE_RESTORE
+
+      );
+
+      sessionStorage.removeItem(
+
+        'AG_RP_FROM_PROVISIONS'
+
+      );
+
+      showToast(
+
+        'Se restauró la provisión que estabas diligenciando.',
+
+        'success'
+
+      );
+
+    }
+
+  );
+
+}
+
+  /* =========================================================
+
+     HISTÓRICO
+
+     ========================================================= */
+
+  function fillHistorySelectors() {
+
+    const monthNames = [
+
+      'Enero',
+
+      'Febrero',
+
+      'Marzo',
+
+      'Abril',
+
+      'Mayo',
+
+      'Junio',
+
+      'Julio',
+
+      'Agosto',
+
+      'Septiembre',
+
+      'Octubre',
+
+      'Noviembre',
+
+      'Diciembre'
+
+    ];
+
+    el['rp-history-month']
+
+      .innerHTML =
+
+        monthNames.map(
+
+          function (name, index) {
+
+            return (
+
+              '<option value="' +
+
+              (index + 1) +
+
+              '">' +
+
+              name +
+
+              '</option>'
+
+            );
+
+          }
+
+        ).join('');
+
+    const now =
+
+      new Date();
+
+    const years = [];
+
+    for (
+
+      let year =
+
+        now.getFullYear();
+
+      year >=
+
+        now.getFullYear() - 6;
+
+      year -= 1
+
+    ) {
+
+      years.push(year);
+
+    }
+
+    el['rp-history-year']
+
+      .innerHTML =
+
+        years.map(
+
+          function (year) {
+
+            return (
+
+              '<option value="' +
+
+              year +
+
+              '">' +
+
+              year +
+
+              '</option>'
+
+            );
+
+          }
+
+        ).join('');
+
+    el['rp-history-month'].value =
+
+      now.getMonth() + 1;
+
+    el['rp-history-year'].value =
+
+      now.getFullYear();
+
+  }
+
+    function loadHistoricalPeriod() {
+
+  const month =
+
+    Number(
+
+      el[
+
+        'rp-history-month'
+
+      ].value
+
+    );
+
+  const year =
+
+    Number(
+
+      el[
+
+        'rp-history-year'
+
+      ].value
+
+    );
+
+  closeModal(
+
+    'history',
+
+    true
+
+  );
+
+  clearFilters();
+
+  loadDashboard({
+
+    anio: year,
+
+    mes: month
+
+  });
+
+}
+
+  /* =========================================================
+
+     EXPORTACIÓN
+
+     ========================================================= */
+
+  function exportXlsx() {
+
+    showLoading(
+
+      'Preparando archivo XLSX...'
+
+    );
+
+    rp_rpc()
+
+      .withSuccessHandler(
+
+        function (response) {
+
+          hideLoading();
+
+          if (
+
+            !response ||
+
+            response.ok !== true
+
+          ) {
+
+            showToast(
+
+              'No fue posible generar el archivo.',
+
+              'error'
+
+            );
+
+            return;
+
+          }
+
+          downloadBase64File(
+
+            response.base64,
+
+            response.mimeType,
+
+            response.nombreArchivo
+
+          );
+
+          showToast(
+
+            response.cantidadRegistros +
+
+            ' registros exportados.',
+
+            'success'
+
+          );
+
+        }
+
+      )
+
+      .withFailureHandler(
+
+        handleServerError
+
+      )
+
+      .rpExportarXlsx({
+
+        anio:
+
+          state.periodSelection.anio,
+
+        mes:
+
+          state.periodSelection.mes,
+
+        mesFiltro:
+
+          el[
+
+            'rp-filter-month'
+
+          ].value,
+
+        semana:
+
+          el[
+
+            'rp-filter-week'
+
+          ].value,
+
+        cliente:
+
+          el[
+
+            'rp-filter-client'
+
+          ].value,
+
+        referenciaAg:
+
+          el[
+
+            'rp-filter-reference'
+
+          ].value,
+
+        proveedor:
+
+          el[
+
+            'rp-filter-provider'
+
+          ].value,
+
+        busqueda:
+
+          el[
+
+            'rp-filter-search'
+
+          ].value
+
+      });
+
+  }
+
+  function downloadBase64File(
+
+    base64,
+
+    mimeType,
+
+    filename
+
+  ) {
+
+    const binary =
+
+      atob(base64);
+
+    const bytes =
+
+      new Uint8Array(
+
+        binary.length
+
+      );
+
+    for (
+
+      let i = 0;
+
+      i < binary.length;
+
+      i += 1
+
+    ) {
+
+      bytes[i] =
+
+        binary.charCodeAt(i);
+
+    }
+
+    const blob =
+
+      new Blob(
+
+        [bytes],
+
+        {
+
+          type: mimeType
+
+        }
+
+      );
+
+    const url =
+
+      URL.createObjectURL(
+
+        blob
+
+      );
+
+    const anchor =
+
+      document.createElement(
+
+        'a'
+
+      );
+
+    anchor.href = url;
+
+    anchor.download =
+
+      filename || 'reporte.xlsx';
+
+    document.body.appendChild(
+
+      anchor
+
+    );
+
+    anchor.click();
+
+    document.body.removeChild(
+
+      anchor
+
+    );
+
+    setTimeout(
+
+      function () {
+
+        URL.revokeObjectURL(
+
+          url
+
+        );
+
+      },
+
+      1000
+
+    );
+
+  }
+
+/** @param {'register'|'edit'} mode @param {{completeMissing?:boolean}=} options @returns {Promise<void>} */
+async function repairProvisionOperation(mode, options) {
+  const button = el[mode === 'register' ? 'rp-btn-repair-operation' : 'rp-btn-repair-edit-operation'];
+  if (button.disabled || !rpAlive_()) return;
+  const reference = mode === 'register' ? normalizeReference(el['rp-register-reference'].value) : state.editingReference;
+  if (!/^(AGM|AGX)\d{4}$/.test(reference)) { showToast('Primero ingresa una referencia AGM o AGX válida.','error'); return; }
+  button.disabled = true;
+  try {
+    const fresh = await window.agRunAuthenticated('roConsultarOperacion',reference);
+    if (!rpAlive_()) return;
+    if (!fresh || fresh.ok !== true) throw new Error(fresh && fresh.mensaje || 'No fue posible consultar la operación.');
+    if (!fresh.existe) { if(mode === 'register') prepareNewOperation(reference); else showToast('La operación ya no existe. Actualiza el reporte.','error'); return; }
+    const result = await window.ROShared.edit(rpRoot,{operation:fresh.operacion,requireDo:false,lockReference:true,completeMissing:Boolean(options && options.completeMissing)});
+    if (!result || !rpAlive_()) return;
+    const verified = await window.agRunAuthenticated('roConsultarOperacion',result.referenciaAg);
+    if (!rpAlive_()) return;
+    if (!verified || verified.ok !== true || !verified.existe) throw new Error('Consulta nuevamente la operación para comprobar sus datos.');
+    if (mode === 'register') {
+      if(normalizeReference(el['rp-register-reference'].value) !== reference) return;
+      setRegisterOperation(verified.operacion);
+    } else {
+      state.editOperation = verified.operacion;
+      el['rp-edit-ref'].textContent = verified.operacion.referenciaAg;
+      el['rp-edit-client'].textContent = verified.operacion.cliente;
+      el['rp-edit-do'].textContent = verified.operacion.do || 'Pendiente';
+    }
+    showToast('Datos de operación comprobados. Se conservó el formulario.','success');
+  } catch(error) { if(rpAlive_()) handleServerError(error); }
+  finally { if(rpAlive_()) button.disabled = false; }
+}
