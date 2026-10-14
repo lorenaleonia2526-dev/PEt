@@ -1,0 +1,1392 @@
+<!-- =======================================================
+
+       MODAL REGISTRO PROVISIÓN
+
+       ======================================================= -->
+
+  <div
+
+    class="rp-modal-layer"
+
+    id="rp-modal-register"
+
+  >
+
+    <div class="rp-modal">
+
+      <div class="rp-modal-header">
+
+        <div>
+
+          <span>Nuevo registro</span>
+
+          <h2>
+
+            Registrar provisión
+
+          </h2>
+
+          <p>
+
+            Selecciona una operación y registra
+
+            uno o varios proveedores.
+
+          </p>
+
+        </div>
+
+        <button
+
+          type="button"
+
+          class="rp-modal-close"
+
+          data-rp-close="register"
+
+        >
+
+          ×
+
+        </button>
+
+      </div>
+
+      <div class="rp-modal-body">
+
+        <div class="rp-reference-search">
+
+          <div class="rp-field">
+
+            <label for="rp-register-reference">
+
+              Referencia AG
+
+            </label>
+
+            <input
+
+              type="text"
+
+              id="rp-register-reference"
+
+              maxlength="7"
+
+              placeholder="AGM0000 / AGX0000"
+
+              autocomplete="off"
+
+            >
+
+          </div>
+
+          <button
+
+            type="button"
+
+            class="rp-button rp-button-secondary"
+
+            id="rp-btn-search-operation"
+
+          >
+
+            Consultar
+
+          </button>
+          <button type="button" class="rp-button rp-button-secondary" id="rp-btn-repair-operation">Completar / corregir operación</button>
+
+        </div>
+
+        <div
+
+          class="rp-alert rp-alert-warning"
+
+          id="rp-register-do-warning"
+
+        >
+
+          La operación que va a provisionar
+
+          aún no tiene un D.O. asignado.
+
+          Hágalo prontamente.
+
+        </div>
+
+        <div
+
+          class="rp-operation-summary"
+
+          id="rp-register-summary"
+
+          hidden
+
+        >
+
+          <div class="rp-summary-box">
+
+            <span>Referencia</span>
+
+            <strong id="rp-register-summary-ref"></strong>
+
+          </div>
+
+          <div class="rp-summary-box">
+
+            <span>Cliente</span>
+
+            <strong id="rp-register-summary-client"></strong>
+
+          </div>
+
+          <div class="rp-summary-box">
+
+            <span>D.O.</span>
+
+            <strong id="rp-register-summary-do"></strong>
+          </div>
+          <div class="rp-summary-box">
+            <span>BL / Guía</span>
+            <strong id="rp-register-summary-bl"></strong>
+
+          </div>
+
+        </div>
+
+<div
+
+  id="rp-register-lines"
+
+  hidden
+
+>
+
+  <div
+
+    class="rp-field"
+
+    style="
+
+      max-width:220px;
+
+      margin-bottom:16px;
+
+    "
+
+  >
+
+    <label for="rp-register-report-date">
+
+      Fecha de reporte
+
+    </label>
+
+    <input
+
+      type="date"
+
+      id="rp-register-report-date"
+
+    >
+
+    <div
+
+      style="
+
+        margin-top:6px;
+
+        color:#73758A;
+
+        font-size:9px;
+
+        line-height:1.4;
+
+      "
+
+    >
+
+      Temporal para cargar provisiones históricas.
+
+      Si se deja vacío, se usará la fecha actual.
+
+    </div>
+
+  </div>
+
+  <div
+
+    class="rp-field"
+
+    style="
+
+      max-width:220px;
+
+      margin-bottom:16px;
+
+    "
+
+  >
+
+    <label for="rp-register-eta">
+
+      ETA/ETD
+
+    </label>
+
+    <input
+
+      type="date"
+
+      id="rp-register-eta"
+
+    >
+
+  </div>
+
+          <div class="rp-provision-table-wrap">
+
+            <table class="rp-provision-table">
+
+              <thead>
+
+                <tr>
+
+                  <th style="width:22%;">
+
+                    Proveedor
+
+                  </th>
+
+                  <th style="width:12%;">
+
+                    USD
+
+                  </th>
+
+                  <th style="width:12%;">
+
+                    EUR
+
+                  </th>
+
+                  <th style="width:12%;">
+
+                    COP
+
+                  </th>
+
+                  <th style="width:25%;">
+
+                    Observaciones
+
+                  </th>
+
+                  <th style="width:4%;"></th>
+
+                </tr>
+
+              </thead>
+
+              <tbody id="rp-register-rows"></tbody>
+
+            </table>
+
+          </div>
+
+          <div class="rp-add-provider">
+
+  <button
+
+    type="button"
+
+    class="rp-add-provider-circle"
+
+    id="rp-btn-add-provider"
+
+    title="Agregar otro proveedor"
+
+  >
+
+    +
+
+  </button>
+
+  <div class="rp-provider-helper">
+
+    Agregar otro proveedor a esta misma operación
+
+  </div>
+
+  <button
+
+    type="button"
+
+    class="rp-button rp-button-secondary"
+
+    id="rp-btn-create-provider"
+
+  >
+
+    Crear proveedor
+
+  </button>
+
+</div>
+
+        </div>
+
+      </div>
+
+      <div class="rp-modal-footer">
+
+        <span
+
+          style="
+
+            color:#73758A;
+
+            font-size:9px;
+
+          "
+
+        >
+
+          Fecha de reporte, mes y semana
+
+          se generan automáticamente.
+
+        </span>
+
+        <div class="rp-modal-footer-right">
+
+          <button
+
+            type="button"
+
+            class="rp-button rp-button-secondary"
+
+            data-rp-close="register"
+
+          >
+
+            Cancelar
+
+          </button>
+
+          <button
+
+            type="button"
+
+            class="rp-button rp-button-secondary"
+
+            id="rp-btn-save-and-new"
+
+          >
+
+            Guardar y registrar otra
+
+          </button>
+
+          <button
+
+            type="button"
+
+            class="rp-button rp-button-primary"
+
+            id="rp-btn-save-register"
+
+          >
+
+            Guardar provisión
+
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- =======================================================
+
+       MODAL NUEVA OPERACIÓN
+
+       ======================================================= -->
+
+  <div
+
+    class="rp-modal-layer"
+
+    id="rp-modal-operation"
+
+  >
+
+    <div class="rp-modal rp-modal-md">
+
+      <div class="rp-modal-header">
+
+        <div>
+
+          <span>Operación no encontrada</span>
+
+          <h2>
+
+            Registrar operación
+
+          </h2>
+
+          <p>
+
+            Esta referencia aún no existe
+
+            en OPERACIONES_REGISTRADAS.
+
+          </p>
+
+        </div>
+
+        <button
+
+          type="button"
+
+          class="rp-modal-close"
+
+          data-rp-close="operation"
+
+        >
+
+          ×
+
+        </button>
+
+      </div>
+
+      <div class="rp-modal-body">
+
+        <div class="rp-form-grid">
+
+          <div class="rp-field">
+
+            <label for="rp-operation-reference">
+
+              Referencia AG
+
+            </label>
+
+            <input
+
+              type="text"
+
+              id="rp-operation-reference"
+
+              maxlength="7"
+
+              readonly
+
+            >
+
+          </div>
+
+          <div class="rp-field">
+
+            <label for="rp-operation-client">
+
+              Cliente
+
+            </label>
+
+            <select id="rp-operation-client">
+
+              <option value="">
+
+                Seleccione...
+
+              </option>
+
+            </select>
+
+          </div>
+
+          <div class="rp-field is-wide">
+
+            <label for="rp-operation-bl">
+
+              BL / Guía de referencia
+
+            </label>
+
+            <input
+
+              type="text"
+
+              id="rp-operation-bl"
+
+              placeholder="Obligatorio"
+
+              autocomplete="off"
+
+            >
+
+          </div>
+
+          <div class="rp-field">
+
+            <label for="rp-operation-do">
+
+              D.O.
+
+            </label>
+
+            <input
+
+              type="text"
+
+              id="rp-operation-do"
+
+              maxlength="9"
+
+              inputmode="numeric"
+
+              placeholder="9 números · opcional"
+
+              autocomplete="off"
+
+            >
+
+          </div>
+
+        </div>
+
+        <div
+
+          class="rp-alert rp-alert-warning"
+
+          id="rp-operation-do-warning"
+
+          style="margin-top:14px;"
+
+        >
+
+          Puede registrar la operación sin D.O.
+
+          La provisión continuará normalmente,
+
+          pero debe asignarlo prontamente.
+
+        </div>
+
+      </div>
+
+      <div class="rp-modal-footer">
+
+        <span></span>
+
+        <div class="rp-modal-footer-right">
+
+          <button
+
+            type="button"
+
+            class="rp-button rp-button-secondary"
+
+            data-rp-close="operation"
+
+          >
+
+            Cancelar
+
+          </button>
+
+          <button
+
+            type="button"
+
+            class="rp-button rp-button-primary"
+
+            id="rp-btn-save-operation"
+
+          >
+
+            Registrar operación
+
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- =======================================================
+
+       MODAL EDICIÓN
+
+       ======================================================= -->
+
+  <div
+
+    class="rp-modal-layer"
+
+    id="rp-modal-edit"
+
+  >
+
+    <div class="rp-modal">
+
+      <div class="rp-modal-header">
+
+        <div>
+
+          <span>Edición controlada</span>
+
+          <h2>
+
+            Editar provisión
+
+          </h2>
+
+          <p>
+
+            Puedes modificar proveedores,
+
+            ETA/ETD, monedas y observaciones.
+
+          </p>
+
+        </div>
+
+        <button
+
+          type="button"
+
+          class="rp-modal-close"
+
+          data-rp-close="edit"
+
+        >
+
+          ×
+
+        </button>
+
+      </div>
+
+      <div class="rp-modal-body">
+
+        <div class="rp-operation-summary">
+
+          <div class="rp-summary-box">
+
+            <span>Referencia</span>
+
+            <strong id="rp-edit-ref"></strong>
+
+          </div>
+
+          <div class="rp-summary-box">
+
+            <span>Cliente</span>
+
+            <strong id="rp-edit-client"></strong>
+
+          </div>
+
+          <div class="rp-summary-box">
+
+            <span>D.O.</span>
+
+            <strong id="rp-edit-do"></strong>
+          <button type="button" class="rp-button rp-button-secondary" id="rp-btn-repair-edit-operation">Completar / corregir operación</button>
+
+
+          </div>
+
+        </div>
+
+        <div
+
+  class="rp-field"
+
+  style="
+
+    max-width:220px;
+
+    margin-bottom:16px;
+
+  "
+
+>
+
+  <label for="rp-edit-eta">
+
+    ETA/ETD
+
+  </label>
+
+  <input
+
+    type="date"
+
+    id="rp-edit-eta"
+
+  >
+
+</div>
+
+        <div class="rp-provision-table-wrap">
+
+          <table class="rp-provision-table">
+
+            <thead>
+
+              <tr>
+
+                <th style="width:22%;">
+
+                  Proveedor
+
+                </th>
+
+                  <th style="width:12%;">
+
+                  USD
+
+                </th>
+
+                <th style="width:12%;">
+
+                  EUR
+
+                </th>
+
+                <th style="width:12%;">
+
+                  COP
+
+                </th>
+
+                <th style="width:25%;">
+
+                  Observaciones
+
+                </th>
+
+                <th style="width:4%;"></th>
+
+              </tr>
+
+            </thead>
+
+            <tbody id="rp-edit-rows"></tbody>
+
+          </table>
+
+        </div>
+
+        <div class="rp-add-provider">
+
+          <span class="rp-provider-helper">
+
+            Las filas eliminadas se conservarán
+
+            como anuladas en el historial.
+
+          </span>
+
+          <button
+
+            type="button"
+
+            class="rp-button rp-button-secondary"
+
+            id="rp-btn-edit-add-provider"
+
+          >
+
+            ＋ Agregar proveedor
+
+          </button>
+
+        </div>
+
+      </div>
+
+      <div class="rp-modal-footer">
+
+        <button
+
+          type="button"
+
+          class="rp-button rp-button-danger"
+
+          id="rp-btn-annul"
+
+        >
+
+          Anular operación
+
+        </button>
+
+        <div class="rp-modal-footer-right">
+
+          <button
+
+            type="button"
+
+            class="rp-button rp-button-secondary"
+
+            data-rp-close="edit"
+
+          >
+
+            Cancelar
+
+          </button>
+
+          <button
+
+            type="button"
+
+            class="rp-button rp-button-primary"
+
+            id="rp-btn-save-edit"
+
+          >
+
+            Guardar cambios
+
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- =======================================================
+
+       MODAL HISTÓRICO
+
+       ======================================================= -->
+
+  <div
+
+    class="rp-modal-layer"
+
+    id="rp-modal-history"
+
+  >
+
+    <div class="rp-modal rp-modal-sm">
+
+      <div class="rp-modal-header">
+
+        <div>
+
+          <span>Consulta histórica</span>
+
+          <h2>
+
+            Ver otros meses
+
+          </h2>
+
+          <p>
+
+            Selecciona el mes final.
+
+            Se cargarán ese mes y el inmediatamente anterior.
+
+          </p>
+
+        </div>
+
+        <button
+
+          type="button"
+
+          class="rp-modal-close"
+
+          data-rp-close="history"
+
+        >
+
+          ×
+
+        </button>
+
+      </div>
+
+      <div class="rp-modal-body">
+
+        <div class="rp-history-grid">
+
+          <div class="rp-field">
+
+            <label for="rp-history-month">
+
+              Mes
+
+            </label>
+
+            <select id="rp-history-month"></select>
+
+          </div>
+
+          <div class="rp-field">
+
+            <label for="rp-history-year">
+
+              Año
+
+            </label>
+
+            <select id="rp-history-year"></select>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="rp-modal-footer">
+
+        <span></span>
+
+        <div class="rp-modal-footer-right">
+
+          <button
+
+            type="button"
+
+            class="rp-button rp-button-secondary"
+
+            data-rp-close="history"
+
+          >
+
+            Cancelar
+
+          </button>
+
+          <button
+
+            type="button"
+
+            class="rp-button rp-button-primary"
+
+            id="rp-btn-load-history"
+
+          >
+
+            Cargar período
+
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+<!-- =======================================================
+
+     MODAL ANÁLISIS DE PROVISIONES
+
+     ======================================================= -->
+
+<div
+
+  class="rp-modal-layer"
+
+  id="rp-modal-analysis"
+
+>
+
+  <div class="rp-modal">
+
+    <div class="rp-modal-header">
+
+      <div>
+
+        <span>Análisis ampliado</span>
+
+        <h2 id="rp-analysis-title">
+
+          Análisis de provisiones
+
+        </h2>
+
+        <p id="rp-analysis-description">
+
+          Consulta la evolución semanal de las provisiones
+
+          según los filtros seleccionados.
+
+        </p>
+
+      </div>
+
+      <button
+
+        type="button"
+
+        class="rp-modal-close"
+
+        data-rp-close="analysis"
+
+      >
+
+        ×
+
+      </button>
+
+    </div>
+
+    <div class="rp-modal-body">
+
+      <div class="rp-form-grid">
+
+        <div class="rp-field">
+
+          <label for="rp-analysis-period">
+
+            Período
+
+          </label>
+
+          <select id="rp-analysis-period">
+
+            <option value="LAST_4">
+
+              Últimas 4 semanas
+
+            </option>
+
+            <option value="CURRENT_MONTH">
+
+              Mes actual
+
+            </option>
+
+            <option value="PREVIOUS_MONTH">
+
+              Mes anterior
+
+            </option>
+
+            <option value="MONTH">
+
+              Seleccionar mes
+
+            </option>
+
+            <option value="HISTORY">
+
+              Histórico
+
+            </option>
+
+          </select>
+
+        </div>
+
+        <div
+
+          class="rp-field"
+
+          id="rp-analysis-month-wrap"
+
+          hidden
+
+        >
+
+          <label for="rp-analysis-month">
+
+            Mes
+
+          </label>
+
+          <select id="rp-analysis-month"></select>
+
+        </div>
+
+        <div
+
+          class="rp-field"
+
+          id="rp-analysis-year-wrap"
+
+          hidden
+
+        >
+
+          <label for="rp-analysis-year">
+
+            Año
+
+          </label>
+
+          <select id="rp-analysis-year"></select>
+
+        </div>
+
+      </div>
+
+      <div
+
+        style="
+
+          margin-top:22px;
+
+        "
+
+      >
+
+        <div class="rp-chart-head">
+
+          <div>
+
+            <h3 id="rp-analysis-chart-title">
+
+              USD por semana
+
+            </h3>
+
+            <p class="rp-chart-subtitle">
+
+              Detalle semanal del período seleccionado.
+
+            </p>
+
+          </div>
+
+          <span
+
+            class="rp-chart-total"
+
+            id="rp-analysis-total"
+
+          >
+
+            USD 0
+
+          </span>
+
+        </div>
+
+        <div
+
+          id="rp-analysis-chart"
+
+          class="rp-chart"
+
+          style="
+
+            height:360px;
+
+          "
+
+        ></div>
+
+      </div>
+
+    </div>
+
+    <div class="rp-modal-footer">
+
+      <span
+
+        id="rp-analysis-period-label"
+
+        style="
+
+          color:#73758A;
+
+          font-size:10px;
+
+        "
+
+      >
+
+        Últimas 4 semanas
+
+      </span>
+
+      <div class="rp-modal-footer-right">
+
+        <button
+
+          type="button"
+
+          class="rp-button rp-button-secondary"
+
+          data-rp-close="analysis"
+
+        >
+
+          Cerrar
+
+        </button>
+
+        <button
+
+          type="button"
+
+          class="rp-button rp-button-primary"
+
+          id="rp-btn-analysis-export"
+
+        >
+
+          ⇩ Exportar XLSX
+
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+  <!-- =======================================================
+
+       MODAL CONFIRMACIÓN
+
+       ======================================================= -->
+
+  <div
+
+    class="rp-modal-layer"
+
+    id="rp-modal-confirm"
+
+  >
+
+    <div class="rp-modal rp-modal-sm">
+
+      <div class="rp-modal-body">
+
+        <div class="rp-confirm-icon">
+
+          !
+
+        </div>
+
+        <h2
+
+          class="rp-confirm-title"
+
+          id="rp-confirm-title"
+
+        >
+
+          Confirmación
+
+        </h2>
+
+        <p
+
+          class="rp-confirm-message"
+
+          id="rp-confirm-message"
+
+        ></p>
+
+      </div>
+
+      <div class="rp-modal-footer">
+
+        <span></span>
+
+        <div class="rp-modal-footer-right">
+
+          <button
+
+            type="button"
+
+            class="rp-button rp-button-secondary"
+
+            id="rp-confirm-cancel"
+
+          >
+
+            Cancelar
+
+          </button>
+
+          <button
+
+            type="button"
+
+            class="rp-button rp-button-primary"
+
+            id="rp-confirm-ok"
+
+          >
+
+            Continuar
+
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- =======================================================
+
+       DATALIST PROVEEDORES
+
+       ======================================================= -->
+
+  <datalist id="rp-provider-list"></datalist>
+
+  <!-- =======================================================
+
+       CARGA / TOAST
+
+       ======================================================= -->
+
+  <div
+
+    class="rp-loading"
+
+    id="rp-loading"
+
+  >
+
+    <div class="rp-loading-card">
+
+      <span class="rp-spinner"></span>
+
+      <span id="rp-loading-text">
+
+        Procesando...
+
+      </span>
+
+    </div>
+
+  </div>
+
+  <div
+
+    class="rp-toast-zone"
+
+    id="rp-toast-zone"
+
+  ></div>
