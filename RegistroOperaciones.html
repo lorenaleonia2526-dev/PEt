@@ -1,0 +1,17 @@
+<?!= include('RO_Estilos'); ?>
+<section class="ro-surface" data-ro-mount="operations" aria-label="Registro de operaciones">
+  <header class="ro-heading"><div><span class="ro-eyebrow">MÓDULO 08 · CONTROL OPERATIVO</span><h1>Registrar operaciones</h1><p>Una referencia, un cliente y sus documentos asociados.</p></div><button class="ro-button ro-primary" type="button" data-action="create">＋ Nueva operación</button></header>
+  <div class="ro-kpis">
+    <article><span>Operaciones</span><strong data-kpi="total">—</strong></article>
+    <article><span>Importaciones · AGM</span><strong data-kpi="importaciones">—</strong></article>
+    <article><span>Exportaciones · AGX</span><strong data-kpi="exportaciones">—</strong></article>
+    <article class="ro-kpi-warning"><span>D.O. pendiente</span><strong data-kpi="pendientes">—</strong></article>
+  </div>
+  <div class="ro-card">
+    <form class="ro-filters" data-role="filters"><label class="ro-search">Buscar operación<input name="busqueda" type="search" maxlength="200" placeholder="Referencia, cliente, BL/Guía, D.O. o ID" autocomplete="off"></label><label class="ro-check"><input name="pendientes" type="checkbox"> Solo D.O. pendientes</label><button class="ro-button" type="submit">Buscar</button><button class="ro-button" type="button" data-action="refresh">Actualizar</button></form>
+    <div class="ro-table-wrap"><table class="ro-table"><thead><tr><th>ID</th><th>Referencia AG</th><th>Cliente</th><th>BL / Guía</th><th>D.O.</th><th>Acción</th></tr></thead><tbody data-role="rows"><tr><td colspan="6">Cargando operaciones…</td></tr></tbody></table></div>
+    <footer class="ro-pagination"><span data-role="count">—</span><div><button class="ro-button" type="button" data-action="prev" disabled>Anterior</button><span data-role="page">—</span><button class="ro-button" type="button" data-action="next" disabled>Siguiente</button></div></footer>
+  </div>
+  <p class="ro-status" data-role="status" role="status" aria-live="polite"></p>
+</section>
+<?!= include('RO_Javascript'); ?>
