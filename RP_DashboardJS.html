@@ -1,0 +1,2771 @@
+/* =========================================================
+
+     DASHBOARD
+
+     ========================================================= */
+
+  function loadDashboard(
+
+    options
+
+  ) {
+
+    const config = options || {};
+    const request = state.dashboardSeq = (state.dashboardSeq || 0) + 1;
+
+    const inicioFrontend =
+
+  performance.now();
+
+    showLoading(
+
+      'Cargando provisiones...'
+
+    );
+
+    rp_rpc()
+
+        .withSuccessHandler(
+
+  function (response) {
+
+    if (request !== state.dashboardSeq) return;
+    hideLoading();
+
+    const tiempoFrontend =
+
+      performance.now() -
+
+      inicioFrontend;
+
+    console.log(
+
+      '[RP PERF] Dashboard total:',
+
+      tiempoFrontend.toFixed(0),
+
+      'ms'
+
+    );
+
+    if (
+
+      !response ||
+
+      response.ok !== true
+
+    ) {
+
+            showToast(
+
+              'No fue posible cargar el reporte.',
+
+              'error'
+
+            );
+
+            return;
+
+          }
+
+           state.rawRecords =
+
+  Array.isArray(response.registros)
+
+    ? response.registros.slice()
+
+    : [];
+
+state.filteredRecords =
+
+  state.rawRecords.slice();
+
+state.groupedOperations =
+
+  groupByOperation(
+
+    state.filteredRecords
+
+  );
+
+state.period =
+
+  response.periodo || null;
+
+if (response.periodo) {
+
+  state.periodSelection.anio =
+
+    response.periodo.anioFinal;
+
+  state.periodSelection.mes =
+
+    response.periodo.mesFinal;
+
+}
+
+state.page = 1;
+
+state.expanded = {};
+
+el['rp-filter-month'].value = '';
+
+el['rp-filter-week'].value = '';
+
+el['rp-filter-client'].value = '';
+
+el['rp-filter-reference'].value = '';
+
+el['rp-filter-provider'].value = '';
+
+el['rp-filter-search'].value = '';
+
+populateFilters();
+
+updatePeriodLabels();
+
+sortGroupedOperations();
+
+renderKpis();
+
+renderCharts();
+
+renderTable();
+
+closeModal('history');
+
+restoreDraftIfAvailable();
+
+        }
+
+      )
+
+      .withFailureHandler(
+
+        handleServerError
+
+      )
+
+      .rpObtenerDashboard(config);
+
+  }
+
+  function updatePeriodLabels() {
+
+    if (!state.period) {
+
+      return;
+
+    }
+
+    const inicio =
+
+      formatDateHuman(
+
+        state.period.inicio
+
+      );
+
+    const fin =
+
+      formatDateHuman(
+
+        state.period.fin
+
+      );
+
+    el['rp-period-label'].textContent =
+
+      inicio + ' → ' + fin;
+
+  }
+
+  /* =========================================================
+
+     FILTROS
+
+     ========================================================= */
+
+    function populateFilters() {
+
+      populateMonthFilter();
+
+      populateWeekFilter();
+
+      populateClientFilter();
+
+      populateProviderFilter();
+
+    }
+
+  function populateMonthFilter() {
+
+    const months = {};
+
+    state.rawRecords.forEach(
+
+      function (record) {
+
+        if (!record.etaEtd) {
+
+          return;
+
+        }
+
+        const key =
+
+          record.etaEtd.slice(
+
+            0,
+
+            7
+
+          );
+
+        months[key] = true;
+
+      }
+
+    );
+
+    const current =
+
+      el['rp-filter-month'].value;
+
+    el['rp-filter-month'].innerHTML =
+
+      '<option value="">Todos</option>';
+
+    Object.keys(months)
+
+      .sort()
+
+      .forEach(function (key) {
+
+        const option =
+
+          document.createElement(
+
+            'option'
+
+          );
+
+        option.value = key;
+
+        option.textContent =
+
+          formatYearMonth(key);
+
+        el['rp-filter-month']
+
+          .appendChild(option);
+
+      });
+
+    if (
+
+      current &&
+
+      months[current]
+
+    ) {
+
+      el['rp-filter-month'].value =
+
+        current;
+
+    }
+
+  }
+
+  function populateWeekFilter() {
+
+    const weeks = {};
+
+    state.rawRecords.forEach(
+
+      function (record) {
+
+        if (
+
+          record.semanaClave
+
+        ) {
+
+          weeks[
+
+            record.semanaClave
+
+          ] =
+
+            record.semanaEtiqueta;
+
+        }
+
+      }
+
+    );
+
+    const current =
+
+      el['rp-filter-week'].value;
+
+    el['rp-filter-week'].innerHTML =
+
+      '<option value="">Todas</option>';
+
+    Object.keys(weeks)
+
+      .sort()
+
+      .forEach(function (key) {
+
+        const option =
+
+          document.createElement(
+
+            'option'
+
+          );
+
+        option.value = key;
+
+        option.textContent =
+
+          weeks[key];
+
+        el['rp-filter-week']
+
+          .appendChild(option);
+
+      });
+
+    if (
+
+      current &&
+
+      weeks[current]
+
+    ) {
+
+      el['rp-filter-week'].value =
+
+        current;
+
+    }
+
+  }
+
+  function populateClientFilter() {
+
+    const values = uniqueSorted(
+
+      state.rawRecords.map(
+
+        function (record) {
+
+          return record.cliente;
+
+        }
+
+      )
+
+    );
+
+    fillSelect(
+
+      el['rp-filter-client'],
+
+      values,
+
+      'Todos'
+
+    );
+
+  }
+
+  function populateProviderFilter() {
+
+    const values = uniqueSorted(
+
+      state.rawRecords.map(
+
+        function (record) {
+
+          return record.proveedor;
+
+        }
+
+      )
+
+    );
+
+    fillSelect(
+
+      el['rp-filter-provider'],
+
+      values,
+
+      'Todos'
+
+    );
+
+  }
+
+  function clearFilters() {
+
+    el['rp-filter-month'].value = '';
+
+    el['rp-filter-week'].value = '';
+
+    el['rp-filter-client'].value = '';
+
+    el['rp-filter-reference'].value = '';
+
+    el['rp-filter-provider'].value = '';
+
+    el['rp-filter-search'].value = '';
+
+    state.page = 1;
+
+    applyFilters();
+
+  }
+
+  function applyFilters() {
+
+    const month =
+
+      el['rp-filter-month'].value;
+
+    const week =
+
+      el['rp-filter-week'].value;
+
+    const client =
+
+      normalizeKey(
+
+        el['rp-filter-client'].value
+
+      );
+
+    const reference =
+
+      normalizeReference(
+
+        el['rp-filter-reference'].value
+
+      );
+
+    const provider =
+
+      normalizeKey(
+
+        el['rp-filter-provider'].value
+
+      );
+
+    const search =
+
+      normalizeKey(
+
+        el['rp-filter-search'].value
+
+      );
+
+    state.filteredRecords =
+
+      state.rawRecords.filter(
+
+        function (record) {
+
+          if (
+
+            month &&
+
+            (
+
+              !record.etaEtd ||
+
+              !record.etaEtd.startsWith(month)
+
+            )
+
+          ) {
+
+            return false;
+
+          }
+
+          if (
+
+            week &&
+
+            record.semanaClave !== week
+
+          ) {
+
+            return false;
+
+          }
+
+          if (
+
+            client &&
+
+            normalizeKey(
+
+              record.cliente
+
+            ) !== client
+
+          ) {
+
+            return false;
+
+          }
+
+          if (
+
+            reference &&
+
+            record.referenciaAg
+
+              .indexOf(reference) === -1
+
+          ) {
+
+            return false;
+
+          }
+
+          if (
+
+            provider &&
+
+            normalizeKey(
+
+              record.proveedor
+
+            ) !== provider
+
+          ) {
+
+            return false;
+
+          }
+
+          if (search) {
+
+            const haystack =
+
+              normalizeKey([
+
+                record.referenciaAg,
+
+                record.do,
+
+                record.cliente,
+
+                record.proveedor,
+
+                record.observaciones
+
+              ].join(' '));
+
+            if (
+
+              haystack.indexOf(search) === -1
+
+            ) {
+
+              return false;
+
+            }
+
+          }
+
+          return true;
+
+        }
+
+      );
+
+    state.groupedOperations =
+
+      groupByOperation(
+
+        state.filteredRecords
+
+      );
+
+    sortGroupedOperations();
+
+    state.page = Math.min(
+
+      state.page,
+
+      Math.max(
+
+        1,
+
+        getTotalPages()
+
+      )
+
+    );
+
+    renderKpis();
+
+    renderCharts();
+
+    renderTable();
+
+  }
+
+  /* =========================================================
+
+     KPI
+
+     ========================================================= */
+
+  function renderKpis() {
+
+    const comparison =
+
+      getComparisonWeeks();
+
+    const currentRecords =
+
+      state.filteredRecords.filter(
+
+        function (record) {
+
+          return (
+
+            record.semanaClave ===
+
+            comparison.current
+
+          );
+
+        }
+
+      );
+
+    const previousRecords =
+
+      state.filteredRecords.filter(
+
+        function (record) {
+
+          return (
+
+            record.semanaClave ===
+
+            comparison.previous
+
+          );
+
+        }
+
+      );
+
+    const current =
+
+      summarizeRecords(
+
+        currentRecords
+
+      );
+
+    const previous =
+
+      summarizeRecords(
+
+        previousRecords
+
+      );
+
+    el['rp-kpi-usd'].textContent =
+
+      'USD ' +
+
+      moneyFormatter.format(
+
+        current.usd
+
+      );
+
+    el['rp-kpi-eur'].textContent =
+
+      'EUR ' +
+
+      moneyFormatter.format(
+
+        current.eur
+
+      );
+
+    el['rp-kpi-cop'].textContent =
+
+      'COP ' +
+
+      integerFormatter.format(
+
+        current.cop
+
+      );
+
+    el['rp-kpi-operations']
+
+      .textContent =
+
+        current.operations;
+
+    el['rp-kpi-provider-count']
+
+      .textContent =
+
+        current.providers +
+
+        (
+
+          current.providers === 1
+
+            ? ' proveedor'
+
+            : ' proveedores'
+
+        );
+
+    setChangeBadge(
+
+      el['rp-kpi-usd-change'],
+
+      current.usd,
+
+      previous.usd
+
+    );
+
+    setChangeBadge(
+
+      el['rp-kpi-eur-change'],
+
+      current.eur,
+
+      previous.eur
+
+    );
+
+    setChangeBadge(
+
+      el['rp-kpi-cop-change'],
+
+      current.cop,
+
+      previous.cop
+
+    );
+
+    setChangeBadge(
+
+      el['rp-kpi-operations-change'],
+
+      current.operations,
+
+      previous.operations
+
+    );
+
+    const currentLabel =
+
+      getWeekLabel(
+
+        comparison.current
+
+      );
+
+    const previousLabel =
+
+      getWeekLabel(
+
+        comparison.previous
+
+      );
+
+    el['rp-kpi-period-label']
+
+      .textContent =
+
+        currentLabel +
+
+        ' · comparado con ' +
+
+        previousLabel;
+
+  }
+
+  function getComparisonWeeks() {
+
+    const now = new Date();
+
+    const currentWeek =
+
+      isoWeekKey(now);
+
+    const previousDate =
+
+      new Date(now);
+
+    previousDate.setDate(
+
+      previousDate.getDate() - 7
+
+    );
+
+    const previousWeek =
+
+      isoWeekKey(previousDate);
+
+    const keys =
+
+      uniqueSorted(
+
+        state.filteredRecords
+
+          .map(function (record) {
+
+            return record.semanaClave;
+
+          })
+
+          .filter(Boolean)
+
+      );
+
+    if (
+
+      keys.indexOf(currentWeek) !== -1 ||
+
+      !keys.length
+
+    ) {
+
+      return {
+
+        current: currentWeek,
+
+        previous: previousWeek
+
+      };
+
+    }
+
+    const current =
+
+      keys[keys.length - 1];
+
+    const previous =
+
+      keys.length >= 2
+
+        ? keys[keys.length - 2]
+
+        : previousWeek;
+
+    return {
+
+      current: current,
+
+      previous: previous
+
+    };
+
+  }
+
+  function summarizeRecords(
+
+    records
+
+  ) {
+
+    const operations = {};
+
+    const providers = {};
+
+    let usd = 0;
+
+    let eur = 0;
+
+    let cop = 0;
+
+    records.forEach(function (record) {
+
+      usd += Number(record.usd) || 0;
+
+      eur += Number(record.eur) || 0;
+
+      cop += Number(record.cop) || 0;
+
+      if (record.referenciaAg) {
+
+        operations[
+
+          record.referenciaAg
+
+        ] = true;
+
+      }
+
+      if (record.proveedor) {
+
+        providers[
+
+          record.proveedor
+
+        ] = true;
+
+      }
+
+    });
+
+    return {
+
+      usd: usd,
+
+      eur: eur,
+
+      cop: cop,
+
+      operations:
+
+        Object.keys(
+
+          operations
+
+        ).length,
+
+      providers:
+
+        Object.keys(
+
+          providers
+
+        ).length
+
+    };
+
+  }
+
+  function setChangeBadge(
+
+    element,
+
+    current,
+
+    previous
+
+  ) {
+
+    let percent = 0;
+
+    if (
+
+      previous === 0 &&
+
+      current > 0
+
+    ) {
+
+      percent = 100;
+
+    } else if (
+
+      previous !== 0
+
+    ) {
+
+      percent =
+
+        (
+
+          (
+
+            current - previous
+
+          ) / previous
+
+        ) * 100;
+
+    }
+
+    element.classList.remove(
+
+      'is-down',
+
+      'is-flat'
+
+    );
+
+    if (percent < 0) {
+
+      element.classList.add(
+
+        'is-down'
+
+      );
+
+    }
+
+    if (
+
+      Math.abs(percent) < 0.01
+
+    ) {
+
+      element.classList.add(
+
+        'is-flat'
+
+      );
+
+    }
+
+    const prefix =
+
+      percent > 0
+
+        ? '+'
+
+        : '';
+
+    element.textContent =
+
+      prefix +
+
+      percent.toFixed(1) +
+
+      '%';
+
+  }
+
+  /* =========================================================
+
+     GRÁFICOS
+
+     ========================================================= */
+
+    function renderCharts() {
+
+  renderCurrencyChart(
+
+    'usd',
+
+    el['rp-chart-usd'],
+
+    el['rp-chart-total-usd'],
+
+    'USD'
+
+  );
+
+  renderCurrencyChart(
+
+    'cop',
+
+    el['rp-chart-cop'],
+
+    el['rp-chart-total-cop'],
+
+    'COP'
+
+  );
+
+  renderProviderDistribution();
+
+}
+
+  function renderProviderDistribution() {
+
+  const container =
+
+    el['rp-chart-providers'];
+
+  const legend =
+
+    el['rp-provider-legend'];
+
+  const totalElement =
+
+    el['rp-chart-total-providers'];
+
+  if (
+
+    !container ||
+
+    !legend ||
+
+    !totalElement
+
+  ) {
+
+    return;
+
+  }
+
+  const grouped = {};
+
+  state.filteredRecords.forEach(
+
+    function (record) {
+
+      const provider =
+
+        record.proveedor || 'SIN PROVEEDOR';
+
+      if (!grouped[provider]) {
+
+        grouped[provider] = {
+
+          usd: 0,
+
+          cop: 0
+
+        };
+
+      }
+
+      grouped[provider].usd +=
+
+        Number(record.usd) || 0;
+
+      grouped[provider].cop +=
+
+        Number(record.cop) || 0;
+
+    }
+
+  );
+
+  const providers =
+
+    Object.keys(grouped);
+
+  totalElement.textContent =
+
+    providers.length +
+
+    (
+
+      providers.length === 1
+
+        ? ' proveedor'
+
+        : ' proveedores'
+
+    );
+
+  if (!providers.length) {
+
+    container.innerHTML =
+
+      '<div class="rp-chart-empty">' +
+
+      'No hay datos para los filtros actuales.' +
+
+      '</div>';
+
+    legend.innerHTML = '';
+
+    return;
+
+  }
+
+  const totalUsd =
+
+    providers.reduce(
+
+      function (sum, provider) {
+
+        return sum +
+
+          grouped[provider].usd;
+
+      },
+
+      0
+
+    );
+
+  const totalCop =
+
+    providers.reduce(
+
+      function (sum, provider) {
+
+        return sum +
+
+          grouped[provider].cop;
+
+      },
+
+      0
+
+    );
+
+  const orderedProviders =
+
+    providers.sort(
+
+      function (a, b) {
+
+        const totalA =
+
+          grouped[a].usd +
+
+          grouped[a].cop;
+
+        const totalB =
+
+          grouped[b].usd +
+
+          grouped[b].cop;
+
+        return totalB - totalA;
+
+      }
+
+    );
+
+  const palette = [
+
+    '#231E54',
+
+    '#3E58B0',
+
+    '#71A0F7',
+
+    '#8BB2FC',
+
+    '#8E70AE',
+
+    '#70B1AB',
+
+    '#73758A',
+
+    '#5D6BC0'
+
+  ];
+
+  let usdStart = 0;
+
+  let copStart = 0;
+
+  const usdSegments = [];
+
+  const copSegments = [];
+
+  orderedProviders.forEach(
+
+    function (provider, index) {
+
+      const data =
+
+        grouped[provider];
+
+      const color =
+
+        palette[
+
+          index % palette.length
+
+        ];
+
+      const usdPercent =
+
+        totalUsd > 0
+
+          ? (
+
+              data.usd /
+
+              totalUsd
+
+            ) * 100
+
+          : 0;
+
+      const copPercent =
+
+        totalCop > 0
+
+          ? (
+
+              data.cop /
+
+              totalCop
+
+            ) * 100
+
+          : 0;
+
+      if (usdPercent > 0) {
+
+        usdSegments.push(
+
+          color +
+
+          ' ' +
+
+          usdStart +
+
+          '% ' +
+
+          (
+
+            usdStart +
+
+            usdPercent
+
+          ) +
+
+          '%'
+
+        );
+
+        usdStart +=
+
+          usdPercent;
+
+      }
+
+      if (copPercent > 0) {
+
+        copSegments.push(
+
+          color +
+
+          ' ' +
+
+          copStart +
+
+          '% ' +
+
+          (
+
+            copStart +
+
+            copPercent
+
+          ) +
+
+          '%'
+
+        );
+
+        copStart +=
+
+          copPercent;
+
+      }
+
+    }
+
+  );
+
+  const usdGradient =
+
+    usdSegments.length
+
+      ? (
+
+          'conic-gradient(' +
+
+          usdSegments.join(',') +
+
+          ')'
+
+        )
+
+      : '#EEF1F7';
+
+  const copGradient =
+
+    copSegments.length
+
+      ? (
+
+          'conic-gradient(' +
+
+          copSegments.join(',') +
+
+          ')'
+
+        )
+
+      : '#EEF1F7';
+
+  container.innerHTML =
+
+    '<div class="rp-provider-donut-outer" ' +
+
+    'style="background:' +
+
+    usdGradient +
+
+    ';">' +
+
+      '<div class="rp-provider-donut-middle">' +
+
+        '<div class="rp-provider-donut-inner" ' +
+
+        'style="background:' +
+
+        copGradient +
+
+        ';">' +
+
+          '<div class="rp-provider-donut-center">' +
+
+            '<strong>' +
+
+            providers.length +
+
+            '</strong>' +
+
+            '<span>proveedores</span>' +
+
+          '</div>' +
+
+        '</div>' +
+
+      '</div>' +
+
+    '</div>';
+
+  legend.innerHTML =
+
+    orderedProviders.map(
+
+      function (provider, index) {
+
+        const data =
+
+          grouped[provider];
+
+        const color =
+
+          palette[
+
+            index % palette.length
+
+          ];
+
+        const usdPercent =
+
+          totalUsd > 0
+
+            ? (
+
+                data.usd /
+
+                totalUsd
+
+              ) * 100
+
+            : 0;
+
+        const copPercent =
+
+          totalCop > 0
+
+            ? (
+
+                data.cop /
+
+                totalCop
+
+              ) * 100
+
+            : 0;
+
+        return (
+
+          '<div class="rp-provider-legend-item">' +
+
+            '<span ' +
+
+            'class="rp-provider-legend-color" ' +
+
+            'style="background:' +
+
+            color +
+
+            ';">' +
+
+            '</span>' +
+
+            '<div class="rp-provider-legend-data">' +
+
+              '<strong>' +
+
+              escapeHtml(provider) +
+
+              '</strong>' +
+
+              '<span>' +
+
+              'USD ' +
+
+              moneyFormatter.format(
+
+                data.usd
+
+              ) +
+
+              ' · ' +
+
+              usdPercent.toFixed(1) +
+
+              '%' +
+
+              '</span>' +
+
+              '<span>' +
+
+              'COP ' +
+
+              integerFormatter.format(
+
+                data.cop
+
+              ) +
+
+              ' · ' +
+
+              copPercent.toFixed(1) +
+
+              '%' +
+
+              '</span>' +
+
+            '</div>' +
+
+          '</div>'
+
+        );
+
+      }
+
+    ).join('');
+
+}
+
+  function renderCurrencyChart(
+
+    field,
+
+    container,
+
+    totalElement,
+
+    currency
+
+  ) {
+
+    const grouped = {};
+
+    state.filteredRecords.forEach(
+
+      function (record) {
+
+        const key =
+
+          record.semanaClave;
+
+        if (!key) {
+
+          return;
+
+        }
+
+        if (!grouped[key]) {
+
+          grouped[key] = {
+
+            label:
+
+              record.semanaEtiqueta,
+
+            IMPORTACION: 0,
+
+            EXPORTACION: 0
+
+          };
+
+        }
+
+        const type =
+
+          record.tipoOperacion ===
+
+          'EXPORTACION'
+
+            ? 'EXPORTACION'
+
+            : 'IMPORTACION';
+
+        grouped[key][type] +=
+
+          Number(record[field]) || 0;
+
+      }
+
+    );
+
+    const keys =
+
+    Object.keys(grouped)
+
+      .sort()
+
+      .slice(-4);
+
+    const total =
+
+      keys.reduce(
+
+        function (sum, key) {
+
+          return (
+
+            sum +
+
+            grouped[key].IMPORTACION +
+
+            grouped[key].EXPORTACION
+
+          );
+
+        },
+
+        0
+
+      );
+
+    totalElement.textContent =
+
+      currency +
+
+      ' ' +
+
+      (
+
+        currency === 'COP'
+
+          ? integerFormatter.format(total)
+
+          : moneyFormatter.format(total)
+
+      );
+
+    if (!keys.length) {
+
+      container.innerHTML =
+
+        '<div class="rp-chart-empty">' +
+
+        'No hay datos para los filtros actuales.' +
+
+        '</div>';
+
+      return;
+
+    }
+
+    const max =
+
+      Math.max.apply(
+
+        null,
+
+        keys.map(
+
+          function (key) {
+
+            return (
+
+              grouped[key].IMPORTACION +
+
+              grouped[key].EXPORTACION
+
+            );
+
+          }
+
+        )
+
+      ) || 1;
+
+    const yLabels = [
+
+      max,
+
+      max * 0.75,
+
+      max * 0.50,
+
+      max * 0.25,
+
+      0
+
+    ];
+
+    const yAxis =
+
+      '<div class="rp-chart-y">' +
+
+      yLabels.map(
+
+        function (value) {
+
+          return (
+
+            '<span>' +
+
+            compactMoney(
+
+              value,
+
+              currency
+
+            ) +
+
+            '</span>'
+
+          );
+
+        }
+
+      ).join('') +
+
+      '</div>';
+
+    const bars =
+
+      keys.map(
+
+        function (key) {
+
+          const group =
+
+            grouped[key];
+
+          const impo =
+
+            group.IMPORTACION;
+
+          const expo =
+
+            group.EXPORTACION;
+
+          const totalValue =
+
+            impo + expo;
+
+          const height =
+
+            Math.max(
+
+              totalValue > 0
+
+                ? (
+
+                    totalValue /
+
+                    max
+
+                  ) * 100
+
+                : 0,
+
+              1
+
+            );
+
+          const impoPct =
+
+            totalValue > 0
+
+              ? (
+
+                  impo /
+
+                  totalValue
+
+                ) * 100
+
+              : 0;
+
+          const expoPct =
+
+            totalValue > 0
+
+              ? (
+
+                  expo /
+
+                  totalValue
+
+                ) * 100
+
+              : 0;
+
+          const title =
+
+            escapeHtml(
+
+              group.label +
+
+              ' · ' +
+
+              currency +
+
+              ' ' +
+
+              formatCurrencyValue(
+
+                totalValue,
+
+                currency
+
+              ) +
+
+              ' · Importación ' +
+
+              formatCurrencyValue(
+
+                impo,
+
+                currency
+
+              ) +
+
+              ' · Exportación ' +
+
+              formatCurrencyValue(
+
+                expo,
+
+                currency
+
+              )
+
+            );
+
+          return (
+
+            '<div class="rp-bar-group">' +
+
+              '<div ' +
+
+                'class="rp-bar-stack" ' +
+
+                'style="height:' +
+
+                height +
+
+                '%;" ' +
+
+                'title="' +
+
+                title +
+
+                '">' +
+
+                '<div ' +
+
+                  'class="rp-bar-expo" ' +
+
+                  'style="height:' +
+
+                  expoPct +
+
+                  '%;"></div>' +
+
+                '<div ' +
+
+                  'class="rp-bar-impo" ' +
+
+                  'style="height:' +
+
+                  impoPct +
+
+                  '%;"></div>' +
+
+              '</div>' +
+
+              '<span ' +
+
+                'class="rp-bar-label" ' +
+
+                'title="' +
+
+                escapeHtml(
+
+                  group.label
+
+                ) +
+
+                '">' +
+
+                shortWeekLabel(
+
+                  group.label
+
+                ) +
+
+              '</span>' +
+
+            '</div>'
+
+          );
+
+        }
+
+      ).join('');
+
+    container.innerHTML =
+
+      yAxis +
+
+      '<div class="rp-chart-body">' +
+
+      bars +
+
+      '</div>';
+
+  }
+
+/* =========================================================
+
+   ANÁLISIS AMPLIADO
+
+   ========================================================= */
+
+function openAnalysisModal(
+
+  field,
+
+  currency
+
+) {
+
+  state.chartAnalysis.field = field;
+
+  state.chartAnalysis.currency = currency;
+
+  state.chartAnalysis.period = 'LAST_4';
+
+  el['rp-analysis-title'].textContent =
+
+    'Análisis de provisiones · ' + currency;
+
+  el['rp-analysis-description'].textContent =
+
+    'Detalle semanal según los filtros actuales del reporte.';
+
+  el['rp-analysis-chart-title'].textContent =
+
+    currency + ' por semana';
+
+  el['rp-analysis-period'].value = 'LAST_4';
+
+  el['rp-analysis-period-label'].textContent =
+
+    'Últimas 4 semanas';
+
+  el['rp-analysis-month-wrap'].hidden = true;
+
+  el['rp-analysis-year-wrap'].hidden = true;
+
+  renderCurrencyChart(
+
+    field,
+
+    el['rp-analysis-chart'],
+
+    el['rp-analysis-total'],
+
+    currency
+
+  );
+
+  openModal('analysis');
+
+}
+
+  /* =========================================================
+
+     TABLA
+
+     ========================================================= */
+
+  function groupByOperation(
+
+    records
+
+  ) {
+
+    const map = {};
+
+    records.forEach(
+
+      function (record) {
+
+        const ref =
+
+          record.referenciaAg;
+
+        if (!ref) {
+
+          return;
+
+        }
+
+        if (!map[ref]) {
+
+          map[ref] = {
+
+            referenciaAg: ref,
+
+            do: record.do || '',
+
+            cliente:
+
+              record.cliente || '',
+
+            etaEtd:
+
+              record.etaEtd || '',
+
+            usd: 0,
+
+            eur: 0,
+
+            cop: 0,
+
+            providers: {},
+
+            details: []
+
+          };
+
+        }
+
+        const group = map[ref];
+
+        group.usd +=
+
+          Number(record.usd) || 0;
+
+        group.eur +=
+
+          Number(record.eur) || 0;
+
+        group.cop +=
+
+          Number(record.cop) || 0;
+
+        if (record.proveedor) {
+
+          group.providers[
+
+            record.proveedor
+
+          ] = true;
+
+        }
+
+        if (
+
+          !group.etaEtd &&
+
+          record.etaEtd
+
+        ) {
+
+          group.etaEtd =
+
+            record.etaEtd;
+
+        }
+
+        group.details.push(
+
+          record
+
+        );
+
+      }
+
+    );
+
+    return Object.keys(map)
+
+      .map(function (key) {
+
+        const item = map[key];
+
+        item.providerCount =
+
+          Object.keys(
+
+            item.providers
+
+          ).length;
+
+        return item;
+
+      });
+
+  }
+
+  function sortGroupedOperations() {
+
+    const key =
+
+      state.sort.key;
+
+    const direction =
+
+      state.sort.direction === 'asc'
+
+        ? 1
+
+        : -1;
+
+    state.groupedOperations.sort(
+
+      function (a, b) {
+
+        let av = a[key];
+
+        let bv = b[key];
+
+        if (
+
+          ['usd', 'eur', 'cop']
+
+            .indexOf(key) !== -1
+
+        ) {
+
+          av = Number(av) || 0;
+
+          bv = Number(bv) || 0;
+
+          return (
+
+            av - bv
+
+          ) * direction;
+
+        }
+
+        return (
+
+          String(av || '')
+
+            .localeCompare(
+
+              String(bv || ''),
+
+              'es',
+
+              {
+
+                numeric: true,
+
+                sensitivity: 'base'
+
+              }
+
+            ) *
+
+          direction
+
+        );
+
+      }
+
+    );
+
+  }
+
+  function setSort(key) {
+
+    if (
+
+      state.sort.key === key
+
+    ) {
+
+      state.sort.direction =
+
+        state.sort.direction === 'asc'
+
+          ? 'desc'
+
+          : 'asc';
+
+    } else {
+
+      state.sort.key = key;
+
+      state.sort.direction = 'asc';
+
+    }
+
+    sortGroupedOperations();
+
+    renderTable();
+
+  }
+
+  function renderTable() {
+
+    const total =
+
+      state.groupedOperations.length;
+
+    const totalPages =
+
+      getTotalPages();
+
+    if (
+
+      state.page > totalPages
+
+    ) {
+
+      state.page = totalPages;
+
+    }
+
+    const start =
+
+      (state.page - 1) *
+
+      state.pageSize;
+
+    const visible =
+
+      state.groupedOperations.slice(
+
+        start,
+
+        start + state.pageSize
+
+      );
+
+    if (!visible.length) {
+
+      el['rp-table-body'].innerHTML =
+
+        '<tr>' +
+
+          '<td ' +
+
+            'colspan="9" ' +
+
+            'class="rp-table-empty">' +
+
+            'No hay provisiones para los filtros actuales.' +
+
+          '</td>' +
+
+        '</tr>';
+
+    } else {
+
+      el['rp-table-body'].innerHTML =
+
+        visible.map(
+
+          renderOperationRows
+
+        ).join('');
+
+    }
+
+    el['rp-table-count'].textContent =
+
+      total +
+
+      (
+
+        total === 1
+
+          ? ' operación'
+
+          : ' operaciones'
+
+      );
+
+    if (total) {
+
+      const end =
+
+        Math.min(
+
+          start + state.pageSize,
+
+          total
+
+        );
+
+      el['rp-pagination-info']
+
+        .textContent =
+
+          'Mostrando ' +
+
+          (start + 1) +
+
+          '–' +
+
+          end +
+
+          ' de ' +
+
+          total;
+
+    } else {
+
+      el['rp-pagination-info']
+
+        .textContent =
+
+          'Sin registros';
+
+    }
+
+    el['rp-page-prev'].disabled =
+
+      state.page <= 1;
+
+    el['rp-page-next'].disabled =
+
+      state.page >= totalPages;
+
+    bindRenderedRows();
+
+  }
+
+  function renderOperationRows(
+
+    item
+
+  ) {
+
+    const expanded =
+
+      Boolean(
+
+        state.expanded[
+
+          item.referenciaAg
+
+        ]
+
+      );
+
+    let html =
+
+      '<tr ' +
+
+        'class="rp-main-row" ' +
+
+        'data-rp-reference="' +
+
+        escapeHtml(
+
+          item.referenciaAg
+
+        ) +
+
+        '">' +
+
+        '<td>' +
+
+          '<span class="rp-ref">' +
+
+            escapeHtml(
+
+              item.referenciaAg
+
+            ) +
+
+          '</span>' +
+
+        '</td>' +
+
+        '<td class="rp-muted-cell">' +
+
+          escapeHtml(
+
+            item.do || 'Pendiente'
+
+          ) +
+
+        '</td>' +
+
+        '<td>' +
+
+          escapeHtml(
+
+            item.cliente
+
+          ) +
+
+        '</td>' +
+
+        '<td>' +
+
+          renderEta(
+
+            item.etaEtd
+
+          ) +
+
+        '</td>' +
+
+        '<td class="rp-money">' +
+
+          moneyFormatter.format(
+
+            item.usd
+
+          ) +
+
+        '</td>' +
+
+        '<td class="rp-money">' +
+
+          moneyFormatter.format(
+
+            item.eur
+
+          ) +
+
+        '</td>' +
+
+        '<td class="rp-money">' +
+
+          integerFormatter.format(
+
+            item.cop
+
+          ) +
+
+        '</td>' +
+
+        '<td>' +
+
+          '<span class="rp-chip">' +
+
+            item.providerCount +
+
+            (
+
+              item.providerCount === 1
+
+                ? ' proveedor'
+
+                : ' proveedores'
+
+            ) +
+
+          '</span>' +
+
+        '</td>' +
+
+        '<td>' +
+
+          '<button ' +
+
+            'type="button" ' +
+
+            'class="rp-table-icon rp-edit-button" ' +
+
+            'data-rp-edit="' +
+
+            escapeHtml(
+
+              item.referenciaAg
+
+            ) +
+
+            '" ' +
+
+            'title="Editar">' +
+
+            '✎' +
+
+          '</button>' +
+
+        '</td>' +
+
+      '</tr>';
+
+    if (expanded) {
+
+      html +=
+
+        '<tr class="rp-detail-row">' +
+
+          '<td colspan="9">' +
+
+            '<div class="rp-detail-panel">' +
+
+              renderDetailTable(
+
+                item
+
+              ) +
+
+            '</div>' +
+
+          '</td>' +
+
+        '</tr>';
+
+    }
+
+    return html;
+
+  }
+
+  function renderDetailTable(
+
+    item
+
+  ) {
+
+    const rows =
+
+      item.details.map(
+
+        function (detail) {
+
+          return (
+
+            '<tr>' +
+
+              '<td>' +
+
+                escapeHtml(
+
+                  detail.proveedor
+
+                ) +
+
+              '</td>' +
+
+              '<td>' +
+
+                formatDateHuman(
+
+                  detail.etaEtd
+
+                ) +
+
+              '</td>' +
+
+              '<td>' +
+
+                moneyFormatter.format(
+
+                  detail.usd
+
+                ) +
+
+              '</td>' +
+
+              '<td>' +
+
+                moneyFormatter.format(
+
+                  detail.eur
+
+                ) +
+
+              '</td>' +
+
+              '<td>' +
+
+                integerFormatter.format(
+
+                  detail.cop
+
+                ) +
+
+              '</td>' +
+
+              '<td>' +
+
+                escapeHtml(
+
+                  detail.observaciones ||
+
+                  ''
+
+                ) +
+
+              '</td>' +
+
+            '</tr>'
+
+          );
+
+        }
+
+      ).join('');
+
+    return (
+
+      '<table class="rp-detail-table">' +
+
+        '<thead>' +
+
+          '<tr>' +
+
+            '<th>Proveedor</th>' +
+
+            '<th>ETA/ETD</th>' +
+
+            '<th>USD</th>' +
+
+            '<th>EUR</th>' +
+
+            '<th>COP</th>' +
+
+            '<th>Observaciones</th>' +
+
+          '</tr>' +
+
+        '</thead>' +
+
+        '<tbody>' +
+
+          rows +
+
+        '</tbody>' +
+
+      '</table>'
+
+    );
+
+  }
+
+  function bindRenderedRows() {
+
+    el['rp-table-body']
+
+      .querySelectorAll(
+
+        '.rp-main-row'
+
+      )
+
+      .forEach(function (row) {
+
+        row.addEventListener(
+
+          'click',
+
+          function (event) {
+
+            if (
+
+              event.target.closest(
+
+                '.rp-edit-button'
+
+              )
+
+            ) {
+
+              return;
+
+            }
+
+            const ref =
+
+              row.dataset.rpReference;
+
+            state.expanded[ref] =
+
+              !state.expanded[ref];
+
+            renderTable();
+
+          }
+
+        );
+
+      });
+
+    el['rp-table-body']
+
+      .querySelectorAll(
+
+        '.rp-edit-button'
+
+      )
+
+      .forEach(function (button) {
+
+        button.addEventListener(
+
+          'click',
+
+          function (event) {
+
+            event.stopPropagation();
+
+            openEditModal(
+
+              button.dataset.rpEdit
+
+            );
+
+          }
+
+        );
+
+      });
+
+  }
+
+  function getTotalPages() {
+
+    return Math.max(
+
+      1,
+
+      Math.ceil(
+
+        state.groupedOperations.length /
+
+        state.pageSize
+
+      )
+
+    );
+
+  }
