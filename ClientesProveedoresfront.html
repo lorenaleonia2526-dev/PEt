@@ -1,0 +1,3102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+
+  <style>
+    /* =========================================================
+       AG OPERATIONS · MÓDULO 02
+       CLIENTES Y PROVEEDORES
+       ========================================================= */
+
+    #cp-app {
+      --cp-indigo: #231E54;
+      --cp-blue-medium: #3E58B0;
+      --cp-blue: #71A0F7;
+      --cp-blue-light: #8BB2FC;
+      --cp-violet: #8E70AE;
+      --cp-teal: #70B1AB;
+
+      --cp-bg: #F9FAFE;
+      --cp-white: #FFFFFF;
+      --cp-text: #231E54;
+      --cp-muted: #73758A;
+      --cp-table-text: #383754;
+
+      --cp-error: #B64259;
+      --cp-warning-bg: rgba(254, 249, 195, 0.80);
+      --cp-warning-border: rgba(234, 179, 8, 0.34);
+      --cp-warning-text: #713F12;
+
+      --cp-border: rgba(35, 30, 84, 0.10);
+      --cp-border-strong: rgba(35, 30, 84, 0.16);
+
+      --cp-shadow:
+        0 18px 50px rgba(62, 88, 176, 0.08);
+
+      --cp-ease:
+        cubic-bezier(0.22, 1, 0.36, 1);
+
+      position: relative;
+      width: 100%;
+      min-height: 620px;
+      color: var(--cp-text);
+      font-family: "Ubuntu", sans-serif;
+    }
+
+    #cp-app *,
+    #cp-app *::before,
+    #cp-app *::after {
+      box-sizing: border-box;
+    }
+
+    #cp-app button,
+    #cp-app input,
+    #cp-app select {
+      font-family: "Ubuntu", sans-serif;
+    }
+
+    /* =========================================================
+       CABECERA
+       ========================================================= */
+
+    #cp-app .cp-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 26px;
+    }
+
+    #cp-app .cp-heading {
+      min-width: 0;
+    }
+
+    #cp-app .cp-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      color: var(--cp-blue-medium);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    #cp-app .cp-eyebrow-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--cp-teal);
+      box-shadow:
+        0 0 0 5px rgba(112, 177, 171, 0.12);
+    }
+
+    #cp-app .cp-title {
+      margin: 0;
+      color: var(--cp-indigo);
+      font-size: clamp(28px, 3vw, 38px);
+      line-height: 1.05;
+      font-weight: 300;
+      letter-spacing: -0.035em;
+    }
+
+    #cp-app .cp-subtitle {
+      max-width: 650px;
+      margin: 10px 0 0;
+      color: var(--cp-muted);
+      font-size: 13px;
+      font-weight: 400;
+      line-height: 1.55;
+    }
+
+    #cp-app .cp-primary-btn {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      background: var(--cp-indigo);
+      color: #FFFFFF;
+      min-height: 42px;
+      padding: 0 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      white-space: nowrap;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.015em;
+      box-shadow:
+        0 10px 25px rgba(35, 30, 84, 0.16);
+      transition:
+        transform 220ms var(--cp-ease),
+        background 220ms var(--cp-ease),
+        box-shadow 220ms var(--cp-ease);
+    }
+
+    #cp-app .cp-primary-btn:hover {
+      background: var(--cp-blue-medium);
+      transform: translateY(-2px);
+      box-shadow:
+        0 14px 30px rgba(62, 88, 176, 0.20);
+    }
+
+    #cp-app .cp-primary-btn:active {
+      transform: translateY(0);
+    }
+
+    #cp-app .cp-primary-btn:disabled {
+      cursor: wait;
+      opacity: 0.65;
+      transform: none;
+    }
+
+    #cp-app .cp-btn-plus {
+      font-size: 18px;
+      line-height: 1;
+      font-weight: 300;
+      margin-top: -1px;
+    }
+
+    /* =========================================================
+       PANEL DE FILTROS
+       ========================================================= */
+
+    #cp-app .cp-toolbar {
+      position: relative;
+      display: grid;
+      grid-template-columns:
+        minmax(260px, 1fr)
+        minmax(190px, 0.32fr)
+        minmax(160px, 0.25fr);
+      gap: 12px;
+      padding: 14px;
+      margin-bottom: 18px;
+
+      background:
+        linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.82),
+          rgba(255, 255, 255, 0.66)
+        );
+
+      border: 1px solid var(--cp-border);
+      border-radius: 22px;
+
+      box-shadow:
+        0 18px 50px rgba(62, 88, 176, 0.06);
+
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    #cp-app .cp-control {
+      position: relative;
+      min-width: 0;
+    }
+
+    #cp-app .cp-search-icon,
+    #cp-app .cp-select-icon {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      color: rgba(35, 30, 84, 0.50);
+    }
+
+    #cp-app .cp-search-icon {
+      left: 15px;
+      width: 17px;
+      height: 17px;
+    }
+
+    #cp-app .cp-select-icon {
+      left: 14px;
+      width: 16px;
+      height: 16px;
+    }
+
+    #cp-app .cp-search,
+    #cp-app .cp-select {
+      width: 100%;
+      height: 43px;
+      outline: none;
+      border-radius: 13px;
+      border: 1px solid rgba(35, 30, 84, 0.13);
+      background: rgba(255, 255, 255, 0.66);
+      color: var(--cp-text);
+      font-size: 13px;
+      font-weight: 400;
+
+      transition:
+        border-color 200ms var(--cp-ease),
+        box-shadow 200ms var(--cp-ease),
+        background 200ms var(--cp-ease);
+    }
+
+    #cp-app .cp-search {
+      padding: 0 15px 0 43px;
+    }
+
+    #cp-app .cp-select {
+      appearance: none;
+      padding: 0 38px 0 40px;
+      cursor: pointer;
+    }
+
+    #cp-app .cp-control::after {
+      content: "";
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      width: 6px;
+      height: 6px;
+      border-right: 1.5px solid rgba(35, 30, 84, 0.55);
+      border-bottom: 1.5px solid rgba(35, 30, 84, 0.55);
+      transform: translateY(-65%) rotate(45deg);
+      pointer-events: none;
+    }
+
+    #cp-app .cp-control.cp-search-control::after {
+      display: none;
+    }
+
+    #cp-app .cp-search:focus,
+    #cp-app .cp-select:focus {
+      background: rgba(255, 255, 255, 0.92);
+      border-color: rgba(62, 88, 176, 0.45);
+      box-shadow:
+        0 0 0 4px rgba(113, 160, 247, 0.12);
+    }
+
+    #cp-app .cp-search::placeholder {
+      color: rgba(115, 117, 138, 0.75);
+    }
+
+    /* =========================================================
+       TABLA
+       ========================================================= */
+
+    #cp-app .cp-table-card {
+      position: relative;
+      overflow: hidden;
+      border-radius: 24px;
+      border: 1px solid var(--cp-border);
+      background: rgba(255, 255, 255, 0.86);
+      box-shadow: var(--cp-shadow);
+    }
+
+    #cp-app .cp-table-scroll {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    #cp-app .cp-table {
+      width: 100%;
+      min-width: 850px;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    #cp-app .cp-table thead {
+      background:
+        linear-gradient(
+          180deg,
+          rgba(249, 250, 254, 0.95),
+          rgba(249, 250, 254, 0.70)
+        );
+    }
+
+    #cp-app .cp-table th {
+      padding: 15px 16px 13px;
+      border-bottom: 1px solid rgba(35, 30, 84, 0.10);
+      color: rgba(35, 30, 84, 0.68);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.13em;
+      text-align: left;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    #cp-app .cp-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(35, 30, 84, 0.07);
+      color: var(--cp-table-text);
+      font-size: 12px;
+      font-weight: 400;
+      line-height: 1.35;
+      vertical-align: middle;
+    }
+
+    #cp-app .cp-table tbody tr {
+      transition:
+        background 180ms var(--cp-ease);
+    }
+
+    #cp-app .cp-table tbody tr:hover {
+      background: rgba(139, 178, 252, 0.07);
+    }
+
+    #cp-app .cp-table tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    #cp-app .cp-col-id {
+      width: 110px;
+    }
+
+    #cp-app .cp-col-name {
+      width: 29%;
+    }
+
+    #cp-app .cp-col-nit {
+      width: 18%;
+    }
+
+    #cp-app .cp-col-type {
+      width: 22%;
+    }
+
+    #cp-app .cp-col-status {
+      width: 125px;
+    }
+
+    #cp-app .cp-col-actions {
+      width: 86px;
+      text-align: center !important;
+    }
+
+    #cp-app .cp-id-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 25px;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: rgba(35, 30, 84, 0.08);
+      color: var(--cp-indigo);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.025em;
+    }
+
+    #cp-app .cp-name-cell {
+      color: var(--cp-indigo);
+      font-weight: 500;
+    }
+
+    #cp-app .cp-nit-cell {
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.015em;
+    }
+
+    #cp-app .cp-type-cell {
+      color: rgba(56, 55, 84, 0.82);
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    #cp-app .cp-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 25px;
+      padding: 0 10px;
+      border-radius: 999px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+    }
+
+    #cp-app .cp-status::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+    }
+
+    #cp-app .cp-status-active {
+      background: rgba(112, 177, 171, 0.12);
+      color: #287970;
+    }
+
+    #cp-app .cp-status-active::before {
+      background: #70B1AB;
+      box-shadow:
+        0 0 0 4px rgba(112, 177, 171, 0.10);
+    }
+
+    #cp-app .cp-status-inactive {
+      background: rgba(182, 66, 89, 0.09);
+      color: #9A354A;
+    }
+
+    #cp-app .cp-status-inactive::before {
+      background: #B64259;
+      box-shadow:
+        0 0 0 4px rgba(182, 66, 89, 0.08);
+    }
+
+    #cp-app .cp-edit-btn {
+      width: 32px;
+      height: 32px;
+      border: 1px solid rgba(35, 30, 84, 0.10);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.82);
+      color: var(--cp-blue-medium);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+
+      transition:
+        transform 200ms var(--cp-ease),
+        background 200ms var(--cp-ease),
+        border-color 200ms var(--cp-ease),
+        box-shadow 200ms var(--cp-ease);
+    }
+
+    #cp-app .cp-edit-btn:hover {
+      transform: translateY(-2px);
+      background: rgba(139, 178, 252, 0.12);
+      border-color: rgba(62, 88, 176, 0.22);
+      box-shadow:
+        0 8px 18px rgba(62, 88, 176, 0.10);
+    }
+
+    #cp-app .cp-edit-btn svg {
+      width: 15px;
+      height: 15px;
+    }
+
+    /* =========================================================
+       ESTADOS DE TABLA
+       ========================================================= */
+
+    #cp-app .cp-state-box {
+      min-height: 320px;
+      padding: 50px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    #cp-app .cp-state-icon {
+      width: 52px;
+      height: 52px;
+      margin-bottom: 16px;
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background:
+        linear-gradient(
+          135deg,
+          rgba(139, 178, 252, 0.15),
+          rgba(142, 112, 174, 0.10)
+        );
+      color: var(--cp-blue-medium);
+    }
+
+    #cp-app .cp-state-icon svg {
+      width: 23px;
+      height: 23px;
+    }
+
+    #cp-app .cp-state-title {
+      margin: 0;
+      color: var(--cp-indigo);
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    #cp-app .cp-state-text {
+      max-width: 430px;
+      margin: 8px 0 0;
+      color: var(--cp-muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    #cp-app .cp-spinner {
+      width: 27px;
+      height: 27px;
+      margin-bottom: 16px;
+      border-radius: 50%;
+      border: 2px solid rgba(62, 88, 176, 0.14);
+      border-top-color: var(--cp-blue-medium);
+      animation: cp-spin 0.8s linear infinite;
+    }
+
+    @keyframes cp-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* =========================================================
+       PAGINACIÓN
+       ========================================================= */
+
+    #cp-app .cp-pagination {
+      min-height: 64px;
+      padding: 12px 16px;
+      border-top: 1px solid rgba(35, 30, 84, 0.07);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: rgba(249, 250, 254, 0.48);
+    }
+
+    #cp-app .cp-pagination-info {
+      color: var(--cp-muted);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    #cp-app .cp-pages {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    #cp-app .cp-page-btn {
+      min-width: 31px;
+      height: 31px;
+      padding: 0 9px;
+      border: 1px solid rgba(35, 30, 84, 0.09);
+      border-radius: 9px;
+      background: rgba(255, 255, 255, 0.80);
+      color: var(--cp-indigo);
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 600;
+
+      transition:
+        transform 180ms var(--cp-ease),
+        background 180ms var(--cp-ease),
+        color 180ms var(--cp-ease);
+    }
+
+    #cp-app .cp-page-btn:hover:not(:disabled):not(.is-active) {
+      transform: translateY(-1px);
+      background: rgba(139, 178, 252, 0.11);
+    }
+
+    #cp-app .cp-page-btn.is-active {
+      border-color: var(--cp-indigo);
+      background: var(--cp-indigo);
+      color: #FFFFFF;
+    }
+
+    #cp-app .cp-page-btn:disabled {
+      cursor: default;
+      opacity: 0.35;
+    }
+
+    #cp-app .cp-page-dots {
+      padding: 0 3px;
+      color: var(--cp-muted);
+      font-size: 11px;
+    }
+
+    /* =========================================================
+       MODAL
+       ========================================================= */
+
+    #cp-app .cp-modal-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 22px;
+    }
+
+    #cp-app .cp-modal-layer.is-open {
+      display: flex;
+      animation:
+        cp-fade-in 180ms var(--cp-ease) both;
+    }
+
+    #cp-app .cp-modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background:
+        rgba(24, 23, 57, 0.30);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    #cp-app .cp-modal {
+      position: relative;
+      z-index: 1;
+      width: min(620px, 100%);
+      max-height: calc(100vh - 44px);
+      overflow-y: auto;
+
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      border-radius: 28px;
+
+      background:
+        linear-gradient(
+          145deg,
+          rgba(255, 255, 255, 0.91),
+          rgba(249, 250, 254, 0.76)
+        );
+
+      box-shadow:
+        0 35px 90px rgba(35, 30, 84, 0.20),
+        inset 0 1px 0 rgba(255, 255, 255, 0.88);
+
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+
+      animation:
+        cp-modal-in 220ms var(--cp-ease) both;
+    }
+
+    #cp-app .cp-modal::before {
+      content: "";
+      position: absolute;
+      width: 220px;
+      height: 220px;
+      top: -130px;
+      right: -70px;
+      border-radius: 50%;
+      background: rgba(139, 178, 252, 0.18);
+      filter: blur(6px);
+      pointer-events: none;
+    }
+
+    #cp-app .cp-modal::after {
+      content: "";
+      position: absolute;
+      width: 180px;
+      height: 180px;
+      left: -100px;
+      bottom: -120px;
+      border-radius: 50%;
+      background: rgba(142, 112, 174, 0.10);
+      pointer-events: none;
+    }
+
+    @keyframes cp-fade-in {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes cp-modal-in {
+      from {
+        opacity: 0;
+        transform: translateY(14px) scale(0.985);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    #cp-app .cp-modal-header {
+      position: relative;
+      z-index: 2;
+      padding: 28px 30px 18px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    #cp-app .cp-modal-kicker {
+      margin-bottom: 7px;
+      color: var(--cp-blue-medium);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    #cp-app .cp-modal-title {
+      margin: 0;
+      color: var(--cp-indigo);
+      font-size: 25px;
+      line-height: 1.1;
+      font-weight: 300;
+      letter-spacing: -0.025em;
+    }
+
+    #cp-app .cp-modal-description {
+      margin: 8px 0 0;
+      color: var(--cp-muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    #cp-app .cp-modal-close {
+      width: 34px;
+      height: 34px;
+      flex: 0 0 auto;
+      border: 1px solid rgba(35, 30, 84, 0.09);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.65);
+      color: var(--cp-indigo);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 19px;
+      font-weight: 300;
+
+      transition:
+        transform 180ms var(--cp-ease),
+        background 180ms var(--cp-ease);
+    }
+
+    #cp-app .cp-modal-close:hover {
+      transform: rotate(4deg);
+      background: rgba(139, 178, 252, 0.12);
+    }
+
+    #cp-app .cp-modal-body {
+      position: relative;
+      z-index: 2;
+      padding: 4px 30px 8px;
+    }
+
+    #cp-app .cp-form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    #cp-app .cp-field {
+      min-width: 0;
+    }
+
+    #cp-app .cp-field-full {
+      grid-column: 1 / -1;
+    }
+
+    #cp-app .cp-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 0 0 7px 2px;
+      color: rgba(35, 30, 84, 0.74);
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    #cp-app .cp-required {
+      color: var(--cp-error);
+    }
+
+    #cp-app .cp-input,
+    #cp-app .cp-form-select {
+      width: 100%;
+      height: 45px;
+      outline: none;
+      border: 1px solid rgba(35, 30, 84, 0.13);
+      border-radius: 13px;
+      background: rgba(255, 255, 255, 0.66);
+      color: var(--cp-indigo);
+      padding: 0 14px;
+      font-size: 14px;
+      font-weight: 400;
+
+      transition:
+        border-color 200ms var(--cp-ease),
+        box-shadow 200ms var(--cp-ease),
+        background 200ms var(--cp-ease);
+    }
+
+    #cp-app .cp-form-select {
+      appearance: none;
+      padding-right: 38px;
+      cursor: pointer;
+    }
+
+    #cp-app .cp-form-select-wrap {
+      position: relative;
+    }
+
+    #cp-app .cp-form-select-wrap::after {
+      content: "";
+      position: absolute;
+      right: 17px;
+      top: 50%;
+      width: 7px;
+      height: 7px;
+      border-right: 1.5px solid rgba(35, 30, 84, 0.58);
+      border-bottom: 1.5px solid rgba(35, 30, 84, 0.58);
+      transform: translateY(-70%) rotate(45deg);
+      pointer-events: none;
+    }
+
+    #cp-app .cp-input:focus,
+    #cp-app .cp-form-select:focus {
+      background: rgba(255, 255, 255, 0.92);
+      border-color: rgba(62, 88, 176, 0.45);
+      box-shadow:
+        0 0 0 4px rgba(113, 160, 247, 0.12);
+    }
+
+    #cp-app .cp-input[readonly],
+    #cp-app .cp-form-select:disabled {
+      background: rgba(35, 30, 84, 0.045);
+      color: rgba(35, 30, 84, 0.58);
+      cursor: default;
+    }
+
+    #cp-app .cp-field-help {
+      margin: 6px 2px 0;
+      color: var(--cp-muted);
+      font-size: 10px;
+      line-height: 1.4;
+    }
+
+    #cp-app .cp-form-message {
+      display: none;
+      margin-top: 18px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    #cp-app .cp-form-message.is-visible {
+      display: block;
+    }
+
+    #cp-app .cp-form-message.is-error {
+      border: 1px solid rgba(182, 66, 89, 0.18);
+      background: rgba(182, 66, 89, 0.07);
+      color: #8E3245;
+    }
+
+    #cp-app .cp-form-message.is-warning {
+      border: 1px solid var(--cp-warning-border);
+      background: var(--cp-warning-bg);
+      color: var(--cp-warning-text);
+    }
+
+    #cp-app .cp-modal-footer {
+      position: relative;
+      z-index: 2;
+      padding: 22px 30px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 9px;
+    }
+
+    #cp-app .cp-secondary-btn {
+      min-height: 40px;
+      padding: 0 18px;
+      border: 1px solid rgba(35, 30, 84, 0.12);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.70);
+      color: var(--cp-indigo);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+
+      transition:
+        transform 200ms var(--cp-ease),
+        background 200ms var(--cp-ease);
+    }
+
+    #cp-app .cp-secondary-btn:hover {
+      transform: translateY(-1px);
+      background: rgba(139, 178, 252, 0.10);
+    }
+
+    #cp-app .cp-secondary-btn:disabled {
+      cursor: default;
+      opacity: 0.55;
+      transform: none;
+    }
+
+    /* =========================================================
+       TOAST
+       ========================================================= */
+
+    #cp-app .cp-toast-region {
+      position: fixed;
+      z-index: 10050;
+      right: 24px;
+      bottom: 24px;
+      width: min(360px, calc(100vw - 48px));
+      pointer-events: none;
+    }
+
+    #cp-app .cp-toast {
+      margin-top: 10px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(35, 30, 84, 0.10);
+      background: rgba(255, 255, 255, 0.92);
+      color: var(--cp-indigo);
+      box-shadow:
+        0 18px 45px rgba(35, 30, 84, 0.16);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+
+      font-size: 11px;
+      line-height: 1.45;
+
+      animation:
+        cp-toast-in 220ms var(--cp-ease) both;
+    }
+
+    #cp-app .cp-toast-dot {
+      width: 8px;
+      height: 8px;
+      margin-top: 4px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+      background: var(--cp-teal);
+    }
+
+    #cp-app .cp-toast.is-error .cp-toast-dot {
+      background: var(--cp-error);
+    }
+
+    @keyframes cp-toast-in {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* =========================================================
+       RESPONSIVE
+       ========================================================= */
+
+    @media (max-width: 900px) {
+      #cp-app .cp-toolbar {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      #cp-app .cp-search-control {
+        grid-column: 1 / -1;
+      }
+    }
+
+    @media (max-width: 650px) {
+      #cp-app .cp-header {
+        flex-direction: column;
+      }
+
+      #cp-app .cp-primary-btn {
+        width: 100%;
+      }
+
+      #cp-app .cp-toolbar {
+        grid-template-columns: 1fr;
+      }
+
+      #cp-app .cp-search-control {
+        grid-column: auto;
+      }
+
+      #cp-app .cp-pagination {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      #cp-app .cp-pages {
+        justify-content: flex-start;
+      }
+
+      #cp-app .cp-form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      #cp-app .cp-field-full {
+        grid-column: auto;
+      }
+
+      #cp-app .cp-modal-header,
+      #cp-app .cp-modal-body,
+      #cp-app .cp-modal-footer {
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+
+      #cp-app .cp-modal-footer {
+        flex-direction: column-reverse;
+      }
+
+      #cp-app .cp-modal-footer button {
+        width: 100%;
+      }
+    }
+  </style>
+
+  <div id="cp-app">
+
+    <!-- =====================================================
+         CABECERA
+         ===================================================== -->
+
+    <section class="cp-header">
+      <div class="cp-heading">
+        <div class="cp-eyebrow">
+          <span class="cp-eyebrow-dot"></span>
+          Base maestra de terceros
+        </div>
+
+        <h1 class="cp-title">
+          Clientes y proveedores
+        </h1>
+
+        <p class="cp-subtitle">
+          Creación y administración centralizada de clientes,
+          proveedores operativos y agentes del exterior.
+        </p>
+      </div>
+
+          <div
+  style="
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+  "
+>
+  <button
+    id="cp-back-provisions-btn"
+    class="cp-secondary-btn"
+    type="button"
+    style="display:none;"
+  >
+    ← Volver a provisiones
+  </button>
+
+  <button
+    id="cp-new-btn"
+    class="cp-primary-btn"
+    type="button"
+  >
+    <span class="cp-btn-plus">+</span>
+    Nuevo tercero
+  </button>
+</div>
+    </section>
+
+    <!-- =====================================================
+         FILTROS
+         ===================================================== -->
+
+    <section class="cp-toolbar">
+
+      <div class="cp-control cp-search-control">
+        <svg
+          class="cp-search-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          aria-hidden="true"
+        >
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="m20 20-3.8-3.8"></path>
+        </svg>
+
+        <input
+          id="cp-search"
+          class="cp-search"
+          type="search"
+          autocomplete="off"
+          placeholder="Buscar por ID, nombre o NIT..."
+        >
+      </div>
+
+      <div class="cp-control">
+        <svg
+          class="cp-select-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.7"
+          aria-hidden="true"
+        >
+          <path d="M4 7h16"></path>
+          <path d="M7 12h10"></path>
+          <path d="M10 17h4"></path>
+        </svg>
+
+        <select
+          id="cp-type-filter"
+          class="cp-select"
+        >
+          <option value="">Todos los tipos</option>
+          <option value="PROVEEDOR OPERATIVO">
+            Proveedor operativo
+          </option>
+          <option value="CLIENTE">
+            Cliente
+          </option>
+          <option value="AGENTE EXTERIOR">
+            Agente exterior
+          </option>
+        </select>
+      </div>
+
+      <div class="cp-control">
+        <svg
+          class="cp-select-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.7"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="8"></circle>
+          <path d="M8.5 12.2 11 14.5l4.8-5"></path>
+        </svg>
+
+        <select
+          id="cp-status-filter"
+          class="cp-select"
+        >
+          <option value="">Todos los estados</option>
+          <option value="ACTIVO">Activo</option>
+          <option value="INACTIVO">Inactivo</option>
+        </select>
+      </div>
+
+    </section>
+
+    <!-- =====================================================
+         TABLA
+         ===================================================== -->
+
+    <section class="cp-table-card">
+
+      <div
+        id="cp-loading"
+        class="cp-state-box"
+      >
+        <div class="cp-spinner"></div>
+
+        <h3 class="cp-state-title">
+          Cargando terceros
+        </h3>
+
+        <p class="cp-state-text">
+          Consultando la base maestra de clientes y proveedores.
+        </p>
+      </div>
+
+      <div
+        id="cp-table-content"
+        style="display:none;"
+      >
+        <div class="cp-table-scroll">
+          <table class="cp-table">
+            <thead>
+              <tr>
+                <th class="cp-col-id">ID</th>
+                <th class="cp-col-name">
+                  Nombre cliente
+                </th>
+                <th class="cp-col-nit">NIT</th>
+                <th class="cp-col-type">
+                  Tipo tercero
+                </th>
+                <th class="cp-col-status">
+                  Estado
+                </th>
+                <th class="cp-col-actions">
+                  Acciones
+                </th>
+              </tr>
+            </thead>
+
+            <tbody id="cp-table-body"></tbody>
+          </table>
+        </div>
+
+        <div
+          id="cp-empty"
+          class="cp-state-box"
+          style="display:none;"
+        >
+          <div class="cp-state-icon">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+            >
+              <circle cx="11" cy="11" r="7"></circle>
+              <path d="m20 20-3.5-3.5"></path>
+            </svg>
+          </div>
+
+          <h3 class="cp-state-title">
+            Sin resultados
+          </h3>
+
+          <p class="cp-state-text">
+            No hay terceros que coincidan con la búsqueda
+            o los filtros seleccionados.
+          </p>
+        </div>
+
+        <div
+          id="cp-pagination"
+          class="cp-pagination"
+        >
+          <div
+            id="cp-pagination-info"
+            class="cp-pagination-info"
+          ></div>
+
+          <div
+            id="cp-pages"
+            class="cp-pages"
+          ></div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- =====================================================
+         MODAL CREAR / EDITAR
+         ===================================================== -->
+
+    <div
+      id="cp-modal-layer"
+      class="cp-modal-layer"
+      aria-hidden="true"
+    >
+      <div
+        class="cp-modal-backdrop"
+        data-cp-close-modal="true"
+      ></div>
+
+      <section
+        class="cp-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cp-modal-title"
+      >
+        <header class="cp-modal-header">
+          <div>
+            <div
+              id="cp-modal-kicker"
+              class="cp-modal-kicker"
+            >
+              Base maestra
+            </div>
+
+            <h2
+              id="cp-modal-title"
+              class="cp-modal-title"
+            >
+              Nuevo tercero
+            </h2>
+
+            <p
+              id="cp-modal-description"
+              class="cp-modal-description"
+            >
+              Registra un nuevo cliente, proveedor o agente.
+            </p>
+          </div>
+
+          <button
+            id="cp-modal-close"
+            class="cp-modal-close"
+            type="button"
+            aria-label="Cerrar"
+          >
+            ×
+          </button>
+        </header>
+
+        <div class="cp-modal-body">
+
+          <div class="cp-form-grid">
+
+            <div class="cp-field">
+              <label
+                class="cp-label"
+                for="cp-form-id"
+              >
+                ID
+              </label>
+
+              <input
+                id="cp-form-id"
+                class="cp-input"
+                type="text"
+                readonly
+              >
+
+              <div class="cp-field-help">
+                Consecutivo administrado por el sistema.
+              </div>
+            </div>
+
+            <div class="cp-field">
+              <label
+                class="cp-label"
+                for="cp-form-status"
+              >
+                Estado cliente
+              </label>
+
+              <div class="cp-form-select-wrap">
+                <select
+                  id="cp-form-status"
+                  class="cp-form-select"
+                >
+                  <option value="ACTIVO">
+                    ACTIVO
+                  </option>
+
+                  <option value="INACTIVO">
+                    INACTIVO
+                  </option>
+                </select>
+              </div>
+
+              <div
+                id="cp-status-help"
+                class="cp-field-help"
+              >
+                Los nuevos terceros se crean activos.
+              </div>
+            </div>
+
+            <div class="cp-field cp-field-full">
+              <label
+                class="cp-label"
+                for="cp-form-name"
+              >
+                <span>
+                  Nombre cliente
+                  <span class="cp-required">*</span>
+                </span>
+              </label>
+
+              <input
+                id="cp-form-name"
+                class="cp-input"
+                type="text"
+                autocomplete="off"
+                maxlength="250"
+                placeholder="Ej. TRANSPORTES ANDINOS SAS"
+              >
+            </div>
+
+            <div class="cp-field">
+              <label
+                class="cp-label"
+                for="cp-form-nit"
+              >
+                <span>
+                  NIT
+                  <span class="cp-required">*</span>
+                </span>
+              </label>
+
+              <input
+                id="cp-form-nit"
+                class="cp-input"
+                type="text"
+                inputmode="numeric"
+                autocomplete="off"
+                maxlength="40"
+                placeholder="Ej. 9003957569"
+              >
+
+              <div class="cp-field-help">
+                Se almacenará únicamente con números.
+              </div>
+            </div>
+
+            <div class="cp-field">
+              <label
+                class="cp-label"
+                for="cp-form-type"
+              >
+                <span>
+                  Tipo de tercero
+                  <span class="cp-required">*</span>
+                </span>
+              </label>
+
+              <div class="cp-form-select-wrap">
+                <select
+                  id="cp-form-type"
+                  class="cp-form-select"
+                >
+                  <option value="">
+                    Selecciona un tipo
+                  </option>
+
+                  <option value="PROVEEDOR OPERATIVO">
+                    PROVEEDOR OPERATIVO
+                  </option>
+
+                  <option value="CLIENTE">
+                    CLIENTE
+                  </option>
+
+                  <option value="AGENTE EXTERIOR">
+                    AGENTE EXTERIOR
+                  </option>
+                </select>
+              </div>
+            </div>
+
+          </div>
+
+          <div
+            id="cp-form-message"
+            class="cp-form-message"
+          ></div>
+
+        </div>
+
+        <footer class="cp-modal-footer">
+          <button
+            id="cp-cancel-btn"
+            class="cp-secondary-btn"
+            type="button"
+          >
+            Cancelar
+          </button>
+
+          <button
+            id="cp-save-btn"
+            class="cp-primary-btn"
+            type="button"
+          >
+            Crear tercero
+          </button>
+        </footer>
+      </section>
+    </div>
+
+    <!-- =====================================================
+         TOASTS
+         ===================================================== -->
+
+    <div
+      id="cp-toast-region"
+      class="cp-toast-region"
+      aria-live="polite"
+    ></div>
+
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      /* =======================================================
+         ESTADO LOCAL
+         ======================================================= */
+
+      const CP_FRONT = {
+        PAGE_SIZE: 20,
+
+        records: [],
+        filtered: [],
+
+        page: 1,
+
+        search: '',
+        type: '',
+        status: '',
+
+        modalMode: null,
+        editingId: null,
+
+        saving: false
+      };
+
+      /* =======================================================
+         REFERENCIAS DOM
+         ======================================================= */
+
+      const $ = function (id) {
+        return document.getElementById(id);
+      };
+
+      const els = {
+        newBtn: $('cp-new-btn'),
+        backProvisionsBtn:
+        $('cp-back-provisions-btn'),
+
+        search: $('cp-search'),
+        typeFilter: $('cp-type-filter'),
+        statusFilter: $('cp-status-filter'),
+
+        loading: $('cp-loading'),
+        tableContent: $('cp-table-content'),
+        tableBody: $('cp-table-body'),
+        empty: $('cp-empty'),
+
+        pagination: $('cp-pagination'),
+        paginationInfo: $('cp-pagination-info'),
+        pages: $('cp-pages'),
+
+        modalLayer: $('cp-modal-layer'),
+        modalClose: $('cp-modal-close'),
+        modalKicker: $('cp-modal-kicker'),
+        modalTitle: $('cp-modal-title'),
+        modalDescription: $('cp-modal-description'),
+
+        formId: $('cp-form-id'),
+        formName: $('cp-form-name'),
+        formNit: $('cp-form-nit'),
+        formType: $('cp-form-type'),
+        formStatus: $('cp-form-status'),
+        statusHelp: $('cp-status-help'),
+
+        formMessage: $('cp-form-message'),
+
+        cancelBtn: $('cp-cancel-btn'),
+        saveBtn: $('cp-save-btn'),
+
+        toastRegion: $('cp-toast-region')
+      };
+
+      /* =======================================================
+         INICIO
+         ======================================================= */
+
+      init();
+
+      function init() {
+      configureProvisionReturn();
+      bindEvents();
+      loadRecords();
+      }
+
+      function configureProvisionReturn() {
+      const cameFromProvisions =
+    sessionStorage.getItem(
+      'AG_RP_FROM_PROVISIONS'
+    ) === '1';
+
+  if (
+    !els.backProvisionsBtn
+  ) {
+    return;
+  }
+
+  els.backProvisionsBtn.style.display =
+    cameFromProvisions
+      ? 'inline-flex'
+      : 'none';
+}
+
+      function bindEvents() {
+        els.newBtn.addEventListener(
+          'click',
+          openCreateModal
+        );
+        if (
+  els.backProvisionsBtn
+) {
+  els.backProvisionsBtn
+    .addEventListener(
+      'click',
+      function () {
+        if (
+          typeof window.openModule !==
+          'function'
+        ) {
+          return;
+        }
+
+        openModule(
+          'ReporteProvisionesFront',
+          'Reporte de provisiones'
+        );
+      }
+    );
+}
+
+        els.search.addEventListener(
+          'input',
+          function () {
+            CP_FRONT.search = this.value || '';
+            CP_FRONT.page = 1;
+            applyFilters();
+          }
+        );
+
+        els.typeFilter.addEventListener(
+          'change',
+          function () {
+            CP_FRONT.type = this.value || '';
+            CP_FRONT.page = 1;
+            applyFilters();
+          }
+        );
+
+        els.statusFilter.addEventListener(
+          'change',
+          function () {
+            CP_FRONT.status = this.value || '';
+            CP_FRONT.page = 1;
+            applyFilters();
+          }
+        );
+
+        els.modalClose.addEventListener(
+          'click',
+          closeModal
+        );
+
+        els.cancelBtn.addEventListener(
+          'click',
+          closeModal
+        );
+
+        els.saveBtn.addEventListener(
+          'click',
+          saveModal
+        );
+
+        els.modalLayer.addEventListener(
+          'click',
+          function (event) {
+            const target = event.target;
+
+            if (
+              target &&
+              target.getAttribute(
+                'data-cp-close-modal'
+              ) === 'true'
+            ) {
+              closeModal();
+            }
+          }
+        );
+
+        document.addEventListener(
+          'keydown',
+          function (event) {
+            if (
+              event.key === 'Escape' &&
+              els.modalLayer.classList.contains(
+                'is-open'
+              )
+            ) {
+              closeModal();
+            }
+          }
+        );
+      }
+
+      /* =======================================================
+         CARGA DE DATOS
+         ======================================================= */
+
+      function loadRecords(options) {
+        const opts = options || {};
+
+        if (!opts.silent) {
+          showLoading();
+        }
+
+        google.script.run
+          .withSuccessHandler(
+  function (response) {
+    CP_FRONT.records =
+      response &&
+      Array.isArray(response.terceros)
+        ? response.terceros
+        : [];
+
+    hideLoading();
+    applyFilters();
+  }
+)
+          .withFailureHandler(
+            function (error) {
+              hideLoading();
+
+              CP_FRONT.records = [];
+              CP_FRONT.filtered = [];
+
+              renderTable();
+
+              showToast(
+                getErrorMessage(error),
+                'error'
+              );
+            }
+          )
+          .cpObtenerTerceros();
+      }
+
+      function showLoading() {
+        els.loading.style.display = 'flex';
+        els.tableContent.style.display = 'none';
+      }
+
+      function hideLoading() {
+        els.loading.style.display = 'none';
+        els.tableContent.style.display = 'block';
+      }
+
+      /* =======================================================
+         FILTROS
+         ======================================================= */
+
+      function applyFilters() {
+        const search =
+          normalizeSearch(CP_FRONT.search);
+
+        const type =
+          String(CP_FRONT.type || '')
+            .trim()
+            .toUpperCase();
+
+        const status =
+          String(CP_FRONT.status || '')
+            .trim()
+            .toUpperCase();
+
+        CP_FRONT.filtered =
+          CP_FRONT.records.filter(
+            function (record) {
+              const recordId =
+                normalizeSearch(record.id);
+
+              const recordName =
+                normalizeSearch(record.nombre);
+
+              const recordNit =
+                normalizeSearch(record.nit);
+
+              const recordType =
+                String(record.tipo || '')
+                  .trim()
+                  .toUpperCase();
+
+              const recordStatus =
+                String(record.estado || '')
+                  .trim()
+                  .toUpperCase();
+
+              const matchesSearch =
+                !search ||
+                recordId.includes(search) ||
+                recordName.includes(search) ||
+                recordNit.includes(search);
+
+              const matchesType =
+                !type ||
+                recordType === type;
+
+              const matchesStatus =
+                !status ||
+                recordStatus === status;
+
+              return (
+                matchesSearch &&
+                matchesType &&
+                matchesStatus
+              );
+            }
+          );
+
+        const totalPages =
+          getTotalPages();
+
+        if (CP_FRONT.page > totalPages) {
+          CP_FRONT.page = totalPages;
+        }
+
+        if (CP_FRONT.page < 1) {
+          CP_FRONT.page = 1;
+        }
+
+        renderTable();
+      }
+
+      function normalizeSearch(value) {
+        return String(value || '')
+          .trim()
+          .toUpperCase();
+      }
+
+      /* =======================================================
+         TABLA
+         ======================================================= */
+
+      function renderTable() {
+        const records =
+          getCurrentPageRecords();
+
+        els.tableBody.innerHTML = '';
+
+        if (!CP_FRONT.filtered.length) {
+          els.tableBody.parentElement.style.display =
+            'none';
+
+          els.empty.style.display = 'flex';
+          els.pagination.style.display = 'none';
+
+          return;
+        }
+
+        els.tableBody.parentElement.style.display =
+          'table';
+
+        els.empty.style.display = 'none';
+        els.pagination.style.display = 'flex';
+
+        records.forEach(function (record) {
+          const row =
+            document.createElement('tr');
+
+          row.appendChild(
+            createCell(
+              createIdPill(record.id),
+              'cp-col-id'
+            )
+          );
+
+          row.appendChild(
+            createTextCell(
+              record.nombre,
+              'cp-name-cell'
+            )
+          );
+
+          row.appendChild(
+            createTextCell(
+              record.nit,
+              'cp-nit-cell'
+            )
+          );
+
+          row.appendChild(
+            createTextCell(
+              record.tipo,
+              'cp-type-cell'
+            )
+          );
+
+          row.appendChild(
+            createCell(
+              createStatusBadge(record.estado),
+              ''
+            )
+          );
+
+          const actionsCell =
+            document.createElement('td');
+
+          actionsCell.className =
+            'cp-col-actions';
+
+          actionsCell.appendChild(
+            createEditButton(record.id)
+          );
+
+          row.appendChild(actionsCell);
+
+          els.tableBody.appendChild(row);
+        });
+
+        renderPagination();
+      }
+
+      function createTextCell(
+        value,
+        className
+      ) {
+        const td =
+          document.createElement('td');
+
+        if (className) {
+          td.className = className;
+        }
+
+        td.textContent =
+          value == null ? '' : String(value);
+
+        return td;
+      }
+
+      function createCell(
+        content,
+        className
+      ) {
+        const td =
+          document.createElement('td');
+
+        if (className) {
+          td.className = className;
+        }
+
+        td.appendChild(content);
+
+        return td;
+      }
+
+      function createIdPill(id) {
+        const span =
+          document.createElement('span');
+
+        span.className = 'cp-id-pill';
+        span.textContent = id || '';
+
+        return span;
+      }
+
+      function createStatusBadge(status) {
+        const normalized =
+          String(status || '')
+            .trim()
+            .toUpperCase();
+
+        const span =
+          document.createElement('span');
+
+        span.className =
+          'cp-status ' +
+          (
+            normalized === 'ACTIVO'
+              ? 'cp-status-active'
+              : 'cp-status-inactive'
+          );
+
+        span.textContent =
+          normalized || 'SIN ESTADO';
+
+        return span;
+      }
+
+      function createEditButton(id) {
+        const button =
+          document.createElement('button');
+
+        button.type = 'button';
+        button.className = 'cp-edit-btn';
+        button.title = 'Editar tercero';
+        button.setAttribute(
+          'aria-label',
+          'Editar tercero ' + id
+        );
+
+        button.innerHTML =
+          '<svg viewBox="0 0 24 24" ' +
+          'fill="none" ' +
+          'stroke="currentColor" ' +
+          'stroke-width="1.8" ' +
+          'stroke-linecap="round" ' +
+          'stroke-linejoin="round">' +
+          '<path d="M12 20h9"></path>' +
+          '<path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"></path>' +
+          '</svg>';
+
+        button.addEventListener(
+          'click',
+          function () {
+            openEditModal(id);
+          }
+        );
+
+        return button;
+      }
+
+      /* =======================================================
+         PAGINACIÓN
+         ======================================================= */
+
+      function getTotalPages() {
+        return Math.max(
+          1,
+          Math.ceil(
+            CP_FRONT.filtered.length /
+            CP_FRONT.PAGE_SIZE
+          )
+        );
+      }
+
+      function getCurrentPageRecords() {
+        const start =
+          (CP_FRONT.page - 1) *
+          CP_FRONT.PAGE_SIZE;
+
+        const end =
+          start + CP_FRONT.PAGE_SIZE;
+
+        return CP_FRONT.filtered.slice(
+          start,
+          end
+        );
+      }
+
+      function renderPagination() {
+        const total =
+          CP_FRONT.filtered.length;
+
+        const totalPages =
+          getTotalPages();
+
+        const start =
+          total
+            ? (
+                (CP_FRONT.page - 1) *
+                CP_FRONT.PAGE_SIZE
+              ) + 1
+            : 0;
+
+        const end =
+          Math.min(
+            CP_FRONT.page *
+            CP_FRONT.PAGE_SIZE,
+            total
+          );
+
+        els.paginationInfo.textContent =
+          'Mostrando ' +
+          start +
+          '–' +
+          end +
+          ' de ' +
+          total +
+          (
+            total === 1
+              ? ' registro'
+              : ' registros'
+          );
+
+        els.pages.innerHTML = '';
+
+        els.pages.appendChild(
+          createPageButton(
+            '‹',
+            CP_FRONT.page - 1,
+            CP_FRONT.page === 1,
+            false,
+            'Página anterior'
+          )
+        );
+
+        const items =
+          getPageItems(
+            CP_FRONT.page,
+            totalPages
+          );
+
+        items.forEach(function (item) {
+          if (item === '...') {
+            const dots =
+              document.createElement('span');
+
+            dots.className = 'cp-page-dots';
+            dots.textContent = '…';
+
+            els.pages.appendChild(dots);
+            return;
+          }
+
+          els.pages.appendChild(
+            createPageButton(
+              String(item),
+              item,
+              false,
+              item === CP_FRONT.page,
+              'Página ' + item
+            )
+          );
+        });
+
+        els.pages.appendChild(
+          createPageButton(
+            '›',
+            CP_FRONT.page + 1,
+            CP_FRONT.page === totalPages,
+            false,
+            'Página siguiente'
+          )
+        );
+      }
+
+      function createPageButton(
+        label,
+        page,
+        disabled,
+        active,
+        ariaLabel
+      ) {
+        const button =
+          document.createElement('button');
+
+        button.type = 'button';
+        button.className =
+          'cp-page-btn' +
+          (active ? ' is-active' : '');
+
+        button.textContent = label;
+        button.disabled = disabled;
+
+        button.setAttribute(
+          'aria-label',
+          ariaLabel
+        );
+
+        button.addEventListener(
+          'click',
+          function () {
+            if (
+              disabled ||
+              page < 1 ||
+              page > getTotalPages()
+            ) {
+              return;
+            }
+
+            CP_FRONT.page = page;
+            renderTable();
+          }
+        );
+
+        return button;
+      }
+
+      function getPageItems(
+        current,
+        total
+      ) {
+        if (total <= 7) {
+          const all = [];
+
+          for (
+            let i = 1;
+            i <= total;
+            i++
+          ) {
+            all.push(i);
+          }
+
+          return all;
+        }
+
+        if (current <= 4) {
+          return [
+            1,
+            2,
+            3,
+            4,
+            5,
+            '...',
+            total
+          ];
+        }
+
+        if (current >= total - 3) {
+          return [
+            1,
+            '...',
+            total - 4,
+            total - 3,
+            total - 2,
+            total - 1,
+            total
+          ];
+        }
+
+        return [
+          1,
+          '...',
+          current - 1,
+          current,
+          current + 1,
+          '...',
+          total
+        ];
+      }
+
+      /* =======================================================
+         MODAL CREAR
+         ======================================================= */
+
+      function openCreateModal() {
+        if (CP_FRONT.saving) {
+          return;
+        }
+
+        CP_FRONT.modalMode = 'create';
+        CP_FRONT.editingId = null;
+
+        clearFormMessage();
+
+        els.modalKicker.textContent =
+          'Nuevo registro';
+
+        els.modalTitle.textContent =
+          'Nuevo tercero';
+
+        els.modalDescription.textContent =
+          'Registra un nuevo cliente, proveedor operativo o agente del exterior.';
+
+        els.formId.value = 'Calculando...';
+        els.formName.value = '';
+        els.formNit.value = '';
+        els.formType.value = '';
+
+        els.formStatus.value = 'ACTIVO';
+        els.formStatus.disabled = true;
+
+        els.statusHelp.textContent =
+          'Los nuevos terceros se crean activos.';
+
+        els.saveBtn.textContent =
+          'Crear tercero';
+
+        setSaving(false);
+        openModal();
+
+        google.script.run
+          .withSuccessHandler(
+            function (result) {
+              if (
+                CP_FRONT.modalMode !== 'create'
+              ) {
+                return;
+              }
+
+              els.formId.value =
+                result &&
+                result.siguienteId
+                  ? result.siguienteId
+                  : '';
+            }
+          )
+          .withFailureHandler(
+            function (error) {
+              showFormMessage(
+                getErrorMessage(error),
+                'error'
+              );
+
+              els.formId.value = '';
+            }
+          )
+          .cpObtenerDatosNuevoTercero();
+
+        window.setTimeout(
+          function () {
+            els.formName.focus();
+          },
+          120
+        );
+      }
+
+      /* =======================================================
+         MODAL EDITAR
+         ======================================================= */
+
+      function openEditModal(id) {
+        if (
+          CP_FRONT.saving ||
+          !id
+        ) {
+          return;
+        }
+
+        CP_FRONT.modalMode = 'edit';
+        CP_FRONT.editingId = id;
+
+        clearFormMessage();
+
+        els.modalKicker.textContent =
+          'Edición de registro';
+
+        els.modalTitle.textContent =
+          'Editar tercero';
+
+        els.modalDescription.textContent =
+          'Actualiza la información o cambia el estado del tercero.';
+
+        els.formId.value = id;
+        els.formName.value = 'Cargando...';
+        els.formNit.value = '';
+        els.formType.value = '';
+        els.formStatus.value = 'ACTIVO';
+
+        els.formStatus.disabled = false;
+
+        els.statusHelp.textContent =
+          'Puedes activar o inactivar el registro sin eliminarlo.';
+
+        els.saveBtn.textContent =
+          'Guardar cambios';
+
+        setFormDisabled(true);
+        openModal();
+
+        google.script.run
+          .withSuccessHandler(
+  function (response) {
+    if (
+      CP_FRONT.modalMode !== 'edit' ||
+      CP_FRONT.editingId !== id
+    ) {
+      return;
+    }
+
+    const record =
+      response &&
+      response.tercero
+        ? response.tercero
+        : null;
+
+    if (!record) {
+      setFormDisabled(false);
+
+      showFormMessage(
+        'No fue posible encontrar el tercero seleccionado.',
+        'error'
+      );
+
+      return;
+    }
+
+    els.formId.value =
+      record.id || '';
+
+    els.formName.value =
+      record.nombre || '';
+
+    els.formNit.value =
+      record.nit || '';
+
+    els.formType.value =
+      record.tipo || '';
+
+    els.formStatus.value =
+      String(
+        record.estado || 'ACTIVO'
+      )
+        .trim()
+        .toUpperCase();
+
+    setFormDisabled(false);
+
+    window.setTimeout(
+      function () {
+        els.formName.focus();
+        els.formName.select();
+      },
+      80
+    );
+  }
+)
+          .withFailureHandler(
+            function (error) {
+              setFormDisabled(false);
+
+              showFormMessage(
+                getErrorMessage(error),
+                'error'
+              );
+            }
+          )
+          .cpObtenerTerceroPorId(id);
+      }
+
+      /* =======================================================
+         GUARDAR
+         ======================================================= */
+
+      function saveModal() {
+        if (CP_FRONT.saving) {
+          return;
+        }
+
+        clearFormMessage();
+
+        const data = collectFormData();
+
+        const localValidation =
+          validateFormLocally(data);
+
+        if (!localValidation.ok) {
+          showFormMessage(
+            localValidation.message,
+            'error'
+          );
+
+          focusField(
+            localValidation.field
+          );
+
+          return;
+        }
+
+        if (
+          CP_FRONT.modalMode === 'create'
+        ) {
+          validateAndCreate(data);
+          return;
+        }
+
+        if (
+          CP_FRONT.modalMode === 'edit'
+        ) {
+          validateAndEdit(data);
+        }
+      }
+
+      function collectFormData() {
+        return {
+          id:
+            String(
+              els.formId.value || ''
+            ).trim(),
+
+          nombre:
+            String(
+              els.formName.value || ''
+            ),
+
+          nit:
+            String(
+              els.formNit.value || ''
+            ),
+
+          tipo:
+            String(
+              els.formType.value || ''
+            ),
+
+          estado:
+            String(
+              els.formStatus.value || ''
+            )
+        };
+      }
+
+      function validateFormLocally(data) {
+        if (!data.nombre.trim()) {
+          return {
+            ok: false,
+            field: 'name',
+            message:
+              'El nombre del tercero es obligatorio.'
+          };
+        }
+
+        const normalizedNit =
+          String(data.nit || '')
+            .replace(/\D/g, '');
+
+        if (!normalizedNit) {
+          return {
+            ok: false,
+            field: 'nit',
+            message:
+              'El NIT es obligatorio y debe contener números.'
+          };
+        }
+
+        if (!data.tipo) {
+          return {
+            ok: false,
+            field: 'type',
+            message:
+              'Selecciona el tipo de tercero.'
+          };
+        }
+
+        if (
+          CP_FRONT.modalMode === 'edit' &&
+          data.estado !== 'ACTIVO' &&
+          data.estado !== 'INACTIVO'
+        ) {
+          return {
+            ok: false,
+            field: 'status',
+            message:
+              'Selecciona un estado válido.'
+          };
+        }
+
+        return {
+          ok: true
+        };
+      }
+
+      /* =======================================================
+         CREACIÓN
+         ======================================================= */
+
+      function validateAndCreate(data) {
+        setSaving(true);
+
+        google.script.run
+          .withSuccessHandler(
+            function (result) {
+              if (
+                result &&
+                result.requiereConfirmacion
+              ) {
+                setSaving(false);
+
+                showDuplicateNameWarning(
+                  result,
+                  function () {
+                    createRecord(
+                      Object.assign(
+                        {},
+                        data,
+                        {
+                          confirmarNombreDuplicado:
+                            true
+                        }
+                      )
+                    );
+                  }
+                );
+
+                return;
+              }
+
+              createRecord(data);
+            }
+          )
+          .withFailureHandler(
+            function (error) {
+              setSaving(false);
+
+              showFormMessage(
+                getErrorMessage(error),
+                'error'
+              );
+            }
+          )
+          .cpValidarNuevoTercero(data);
+      }
+
+      function createRecord(data) {
+        setSaving(true);
+        clearFormMessage();
+
+        google.script.run
+          .withSuccessHandler(
+            function (result) {
+              if (
+                result &&
+                result.requiereConfirmacion
+              ) {
+                setSaving(false);
+
+                showDuplicateNameWarning(
+                  result,
+                  function () {
+                    createRecord(
+                      Object.assign(
+                        {},
+                        data,
+                        {
+                          confirmarNombreDuplicado:
+                            true
+                        }
+                      )
+                    );
+                  }
+                );
+
+                return;
+              }
+
+              setSaving(false);
+              closeModal();
+
+              CP_FRONT.page = 1;
+
+              showToast(
+                result &&
+                result.mensaje
+                  ? result.mensaje
+                  : 'Tercero creado correctamente.',
+                'success'
+              );
+
+              loadRecords({
+                silent: true
+              });
+            }
+          )
+          .withFailureHandler(
+            function (error) {
+              setSaving(false);
+
+              showFormMessage(
+                getErrorMessage(error),
+                'error'
+              );
+            }
+          )
+          .cpCrearTercero(data);
+      }
+
+      /* =======================================================
+         EDICIÓN
+         ======================================================= */
+
+      function validateAndEdit(data) {
+        setSaving(true);
+
+        google.script.run
+          .withSuccessHandler(
+            function (result) {
+              if (
+                result &&
+                result.requiereConfirmacion
+              ) {
+                setSaving(false);
+
+                showDuplicateNameWarning(
+                  result,
+                  function () {
+                    editRecord(
+                      Object.assign(
+                        {},
+                        data,
+                        {
+                          confirmarNombreDuplicado:
+                            true
+                        }
+                      )
+                    );
+                  }
+                );
+
+                return;
+              }
+
+              editRecord(data);
+            }
+          )
+          .withFailureHandler(
+            function (error) {
+              setSaving(false);
+
+              showFormMessage(
+                getErrorMessage(error),
+                'error'
+              );
+            }
+          )
+          .cpValidarEdicionTercero(data);
+      }
+
+      function editRecord(data) {
+        setSaving(true);
+        clearFormMessage();
+
+        google.script.run
+          .withSuccessHandler(
+            function (result) {
+              if (
+                result &&
+                result.requiereConfirmacion
+              ) {
+                setSaving(false);
+
+                showDuplicateNameWarning(
+                  result,
+                  function () {
+                    editRecord(
+                      Object.assign(
+                        {},
+                        data,
+                        {
+                          confirmarNombreDuplicado:
+                            true
+                        }
+                      )
+                    );
+                  }
+                );
+
+                return;
+              }
+
+              setSaving(false);
+              closeModal();
+
+              showToast(
+                result &&
+                result.mensaje
+                  ? result.mensaje
+                  : 'Tercero actualizado correctamente.',
+                'success'
+              );
+
+              loadRecords({
+                silent: true
+              });
+            }
+          )
+          .withFailureHandler(
+            function (error) {
+              setSaving(false);
+
+              showFormMessage(
+                getErrorMessage(error),
+                'error'
+              );
+            }
+          )
+          .cpEditarTercero(data);
+      }
+
+      /* =======================================================
+         ADVERTENCIA NOMBRE DUPLICADO
+         ======================================================= */
+
+      function showDuplicateNameWarning(
+        result,
+        onContinue
+      ) {
+        const existing =
+          result &&
+          result.terceroExistente
+            ? result.terceroExistente
+            : null;
+
+        const existingText =
+          existing
+            ? (
+                existing.id +
+                ' · ' +
+                existing.nombre
+              )
+            : '';
+
+        const message =
+          (
+            result &&
+            result.mensaje
+          )
+            ? result.mensaje
+            : (
+                'Ya existe otro tercero con el mismo nombre.'
+              );
+
+        showFormMessage(
+          message +
+          (
+            existingText
+              ? '<br><strong>' +
+                escapeHtml(existingText) +
+                '</strong>'
+              : ''
+          ) +
+          '<div style="' +
+            'display:flex;' +
+            'gap:8px;' +
+            'margin-top:12px;' +
+            'flex-wrap:wrap;' +
+          '">' +
+            '<button ' +
+              'type="button" ' +
+              'id="cp-duplicate-cancel" ' +
+              'class="cp-secondary-btn" ' +
+              'style="min-height:34px;padding:0 14px;"' +
+            '>' +
+              'Cancelar' +
+            '</button>' +
+            '<button ' +
+              'type="button" ' +
+              'id="cp-duplicate-continue" ' +
+              'class="cp-primary-btn" ' +
+              'style="min-height:34px;padding:0 14px;"' +
+            '>' +
+              'Continuar' +
+            '</button>' +
+          '</div>',
+          'warning',
+          true
+        );
+
+        const cancel =
+          $('cp-duplicate-cancel');
+
+        const continueBtn =
+          $('cp-duplicate-continue');
+
+        if (cancel) {
+          cancel.addEventListener(
+            'click',
+            function () {
+              clearFormMessage();
+            }
+          );
+        }
+
+        if (continueBtn) {
+          continueBtn.addEventListener(
+            'click',
+            function () {
+              clearFormMessage();
+
+              if (
+                typeof onContinue ===
+                'function'
+              ) {
+                onContinue();
+              }
+            }
+          );
+        }
+      }
+
+      /* =======================================================
+         MODAL HELPERS
+         ======================================================= */
+
+      function openModal() {
+        els.modalLayer.classList.add(
+          'is-open'
+        );
+
+        els.modalLayer.setAttribute(
+          'aria-hidden',
+          'false'
+        );
+      }
+
+      function closeModal() {
+        if (CP_FRONT.saving) {
+          return;
+        }
+
+        els.modalLayer.classList.remove(
+          'is-open'
+        );
+
+        els.modalLayer.setAttribute(
+          'aria-hidden',
+          'true'
+        );
+
+        CP_FRONT.modalMode = null;
+        CP_FRONT.editingId = null;
+
+        clearFormMessage();
+      }
+
+      function setSaving(isSaving) {
+        CP_FRONT.saving =
+          Boolean(isSaving);
+
+        els.saveBtn.disabled =
+          CP_FRONT.saving;
+
+        els.cancelBtn.disabled =
+          CP_FRONT.saving;
+
+        els.modalClose.disabled =
+          CP_FRONT.saving;
+
+        if (CP_FRONT.saving) {
+          els.saveBtn.textContent =
+            CP_FRONT.modalMode === 'create'
+              ? 'Creando...'
+              : 'Guardando...';
+
+          return;
+        }
+
+        els.saveBtn.textContent =
+          CP_FRONT.modalMode === 'create'
+            ? 'Crear tercero'
+            : 'Guardar cambios';
+      }
+
+      function setFormDisabled(disabled) {
+        els.formName.disabled = disabled;
+        els.formNit.disabled = disabled;
+        els.formType.disabled = disabled;
+        els.formStatus.disabled = disabled;
+        els.saveBtn.disabled = disabled;
+      }
+
+      function focusField(field) {
+        const map = {
+          name: els.formName,
+          nit: els.formNit,
+          type: els.formType,
+          status: els.formStatus
+        };
+
+        const target = map[field];
+
+        if (target) {
+          target.focus();
+        }
+      }
+
+      /* =======================================================
+         MENSAJES
+         ======================================================= */
+
+      function showFormMessage(
+        message,
+        type,
+        allowHtml
+      ) {
+        els.formMessage.className =
+          'cp-form-message is-visible ' +
+          (
+            type === 'warning'
+              ? 'is-warning'
+              : 'is-error'
+          );
+
+        if (allowHtml) {
+          els.formMessage.innerHTML =
+            message;
+        } else {
+          els.formMessage.textContent =
+            message;
+        }
+      }
+
+      function clearFormMessage() {
+        els.formMessage.className =
+          'cp-form-message';
+
+        els.formMessage.textContent = '';
+      }
+
+      function showToast(
+        message,
+        type
+      ) {
+        const toast =
+          document.createElement('div');
+
+        toast.className =
+          'cp-toast' +
+          (
+            type === 'error'
+              ? ' is-error'
+              : ''
+          );
+
+        const dot =
+          document.createElement('span');
+
+        dot.className =
+          'cp-toast-dot';
+
+        const text =
+          document.createElement('div');
+
+        text.textContent =
+          String(message || '');
+
+        toast.appendChild(dot);
+        toast.appendChild(text);
+
+        els.toastRegion.appendChild(toast);
+
+        window.setTimeout(
+          function () {
+            toast.style.opacity = '0';
+            toast.style.transform =
+              'translateY(8px)';
+
+            toast.style.transition =
+              'opacity 180ms ease,' +
+              ' transform 180ms ease';
+
+            window.setTimeout(
+              function () {
+                if (toast.parentNode) {
+                  toast.parentNode.removeChild(
+                    toast
+                  );
+                }
+              },
+              200
+            );
+          },
+          3500
+        );
+      }
+
+      /* =======================================================
+         UTILIDADES
+         ======================================================= */
+
+      function getErrorMessage(error) {
+        if (!error) {
+          return 'Ocurrió un error inesperado.';
+        }
+
+        if (
+          typeof error === 'string'
+        ) {
+          return error;
+        }
+
+        if (error.message) {
+          return String(error.message);
+        }
+
+        return String(error);
+      }
+
+      function escapeHtml(value) {
+        return String(value || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+    })();
+  </script>
+</html>
