@@ -1,0 +1,214 @@
+<script>
+/** @typedef {{id:string,referenciaAg:string,cliente:string,blGuia:string,do:string,tieneDo:boolean,tipoOperacion:string,version:string}} RoClientOperation */
+/** @typedef {{ok:boolean,mensaje?:string,codigo?:string,operacion?:RoClientOperation,clientes?:Array<{id:string,nombre:string,nit:string}>,confirmacion?:string,impacto?:Array<{hoja:string,filas:number,celdas:number}>}} RoClientResponse */
+(function installRegistroOperaciones() {
+  'use strict';
+  if (!window.ROShared) {
+    let editorSequence=0;
+    /** @param {string} tag @param {string=} value @returns {HTMLElement} */
+    function node(tag,value) { const el=document.createElement(tag);if(value!==undefined) el.textContent=value;return el; }
+    /** @template T @param {string} name @param {...unknown} args @returns {Promise<T>} */
+    function rpc(name,...args) {
+      if (!window.AGLogin || !window.AGLogin.isAuthorized() || typeof window.agRunAuthenticated!=='function') return Promise.reject(new Error('La sesión debe acreditarse nuevamente.'));
+      return window.agRunAuthenticated(name,...args).then(function (r) {if(!r||r.ok!==true) throw new Error(r&&r.mensaje?r.mensaje:'No fue posible completar la operación.');return r;});
+    }
+    /** @param {HTMLElement} root @returns {Object} */
+    function lifecycle(root) {
+      const abort=new AbortController();const dialogs=new Set();let disposed=false;
+      function destroy() {if(disposed)return;disposed=true;abort.abort();observer.disconnect();dialogs.forEach(function(d){d.close();d.remove();});dialogs.clear();}
+      const observer=new MutationObserver(function(){if(!root.isConnected)destroy();});observer.observe(document.body,{childList:true,subtree:true});
+      document.addEventListener('ag:session-ended',destroy,{signal:abort.signal});
+      return {signal:abort.signal,dialogs:dialogs,destroy:destroy,alive:function(){return !disposed&&root.isConnected&&window.AGLogin&&window.AGLogin.isAuthorized();}};
+    }
+    /** @param {HTMLElement} root @param {Object} life @param {{reference?:string,operation?:RoClientOperation,doOnly?:boolean,requireDo?:boolean,lockReference?:boolean,completeMissing?:boolean}} opts @returns {Promise<RoClientOperation|null>} */
+    async function editor(root,life,opts) {
+      const initial=await rpc('roObtenerClientesActivos');if(!life.alive())return null;
+      return new Promise(function(resolve){
+        const previous=document.activeElement;
+        const dialog=node('dialog');dialog.className='ro-dialog';life.dialogs.add(dialog);
+        const local=new AbortController();let busy=false,plan=null,emptyConfirmed=false,closed=false;
+        const operation=opts.operation||null;
+        const missing=[];
+        if(opts.completeMissing && operation){
+          if(!String(operation.cliente||'').trim())missing.push('Cliente');
+          if(!String(operation.blGuia||'').trim())missing.push('BL / Guía de referencia');
+        }
+        const head=node('header');head.className='ro-dialog-header';
+        const copy=node('div');
+        const title=opts.completeMissing?'Completar datos de la operación':(operation?(opts.doOnly?'Asignar D.O.':'Editar operación'):'Nueva operación');
+        const description=opts.completeMissing
+          ? 'Para continuar con la provisión '+(operation?operation.referenciaAg:'')+', '+(missing.length?'completa: '+missing.join(' y ')+'.':'revisa los datos de la operación.')+' Tus proveedores, fechas e importes se conservan.'
+          : (operation?'El ID '+operation.id+' se conserva. Los cambios se revisan antes de guardar.':'Registra una referencia AGM o AGX con su cliente y documento de transporte.');
+        const heading=node('h2',title);heading.id='ro-editor-title-'+String(++editorSequence);
+        const explanation=node('p',description);explanation.id='ro-editor-description-'+String(editorSequence);
+        dialog.setAttribute('aria-labelledby',heading.id);dialog.setAttribute('aria-describedby',explanation.id);
+        copy.append(heading,explanation);
+        const close=node('button','×');close.type='button';close.className='ro-button';close.setAttribute('aria-label','Cerrar');head.append(copy,close);
+        const form=node('form');form.noValidate=true;
+        const body=node('div');body.className='ro-dialog-body';const grid=node('div');grid.className='ro-form-grid';
+        const fields={};
+        function field(key,label,tag,wide){const l=node('label',label);l.className='ro-field'+(wide?' ro-wide':'');const input=node(tag||'input');if(tag!=='select')input.type='text';input.name=key;fields[key]=input;l.append(input);grid.append(l);return input;}
+        const ref=field('referenciaAg','Referencia AG');ref.maxLength=7;ref.autocomplete='off';ref.value=operation?operation.referenciaAg:(opts.reference||'');
+        const client=field('clienteId','Cliente','select');client.append(new Option('Seleccione un cliente…',''));
+        initial.clientes.forEach(function(c){client.append(new Option(c.nombre+' · '+c.nit,c.id));});
+        const bl=field('blGuia','BL / Guía de referencia','input',true);bl.maxLength=200;bl.autocomplete='off';bl.value=operation?operation.blGuia:'';
+        const doInput=field('do','D.O.'+(opts.requireDo?' · obligatorio':' · opcional'));doInput.maxLength=9;doInput.inputMode='numeric';doInput.autocomplete='off';doInput.value=operation?operation.do:'';doInput.placeholder='9 números';
+        if(operation){const found=initial.clientes.filter(function(c){return c.nombre===operation.cliente;});if(found.length===1)client.value=found[0].id;else {if(operation.cliente){client.append(new Option(operation.cliente+' · actual','@actual'));client.value='@actual';}}}
+        if(opts.lockReference && /^(AGM|AGX)\d{4}$/.test(ref.value))ref.readOnly=true;
+        if(opts.doOnly){ref.readOnly=true;client.disabled=true;bl.readOnly=true;}
+        const note=node('p');note.className='ro-note';
+        note.textContent=opts.requireDo?'Para solicitar un pago, la operación debe tener un D.O. de nueve números.':'Puede registrar sin D.O. y provisionar. Para solicitar un pago deberá asignarlo.';
+        const status=node('p');status.className='ro-status';status.setAttribute('role','status');status.setAttribute('aria-live','polite');
+        const preview=node('div');preview.className='ro-impact';preview.hidden=true;
+        body.append(grid,note,preview,status);
+        const footer=node('footer');footer.className='ro-dialog-footer';const cancel=node('button','Cancelar');cancel.type='button';cancel.className='ro-button';const save=node('button',operation?'Revisar cambios':'Registrar operación');save.type='submit';save.className='ro-button ro-primary';footer.append(cancel,save);form.append(body,footer);dialog.append(head,form);document.body.append(dialog);
+        function end(result){if(closed)return;closed=true;local.abort();if(dialog.open)dialog.close();dialog.remove();life.dialogs.delete(dialog);if(previous&&previous.isConnected)previous.focus();resolve(result);}
+        function reset(){plan=null;emptyConfirmed=false;preview.hidden=true;save.textContent=operation?'Revisar cambios':'Registrar operación';status.textContent='';}
+        form.addEventListener('input',reset,{signal:local.signal});form.addEventListener('change',reset,{signal:local.signal});
+        ref.addEventListener('blur',function(){ref.value=ref.value.trim().toUpperCase().replace(/\s+/g,'');},{signal:local.signal});
+        close.addEventListener('click',function(){if(!busy)end(null);},{signal:local.signal});cancel.addEventListener('click',function(){if(!busy)end(null);},{signal:local.signal});
+        dialog.addEventListener('cancel',function(e){e.preventDefault();if(!busy)end(null);},{signal:local.signal});
+        dialog.addEventListener('close',function(){end(null);},{signal:local.signal});
+        life.signal.addEventListener('abort',function(){end(null);},{once:true,signal:local.signal});
+        form.addEventListener('submit',async function(event){
+          event.preventDefault();if(busy||!life.alive())return;
+          const datos={referenciaAg:ref.value.trim().toUpperCase().replace(/\s+/g,''),blGuia:bl.value.trim(),do:doInput.value.trim()};
+          if(client.value==='@actual'&&operation)datos.cliente=operation.cliente;else datos.clienteId=client.value;
+          if(!/^(AGM|AGX)\d{4}$/.test(datos.referenciaAg)){status.textContent='Use AGM o AGX seguido de cuatro números.';ref.focus();return;}
+          if(!client.value){status.textContent='Seleccione un cliente.';client.focus();return;}
+          if(!datos.blGuia){status.textContent='El BL o Guía es obligatorio.';bl.focus();return;}
+          if((opts.requireDo&&!datos.do)||(datos.do&&!/^\d{9}$/.test(datos.do))){status.textContent='El D.O. debe contener exactamente nueve números.';doInput.focus();return;}
+          if(!operation&&!datos.do&&!emptyConfirmed){emptyConfirmed=true;status.textContent='La operación quedará con D.O. pendiente. Confirme el registro.';save.textContent='Registrar sin D.O.';return;}
+          busy=true;save.disabled=true;cancel.disabled=true;close.disabled=true;grid.inert=true;status.classList.remove('ro-error');status.textContent='Procesando…';
+          try{
+            let response;
+            if(!operation){response=await rpc('roCrearOperacion',datos);}
+            else if(!plan){
+              plan=await rpc('roPrevisualizarEdicion',{id:operation.id,version:operation.version,datos:datos});
+              if(!life.alive()||closed)return;
+              if(plan.sinCambios){end(plan.operacion);return;}
+              preview.replaceChildren(node('h3','Cambios que se guardarán'));
+              const table=node('table');table.className='ro-compare';const tr=node('tr');tr.append(node('th','Dato'),node('th','Antes'),node('th','Después'));table.append(tr);
+              [['Referencia AG','referenciaAg'],['Cliente','cliente'],['BL / Guía','blGuia'],['D.O.','do']].forEach(function(pair){const a=operation[pair[1]],b=plan.operacion[pair[1]];if(a!==b){const row=node('tr');row.append(node('td',pair[0]),node('td',a||'Pendiente'),node('td',b||'Pendiente'));table.append(row);}});
+              const ul=node('ul');plan.impacto.forEach(function(item){ul.append(node('li',item.hoja+': '+item.filas+' fila(s).'));});preview.append(table,ul);preview.hidden=false;save.textContent='Confirmar actualización';status.textContent='Revise los datos y las relaciones afectadas.';return;
+            }else response=await rpc('roActualizarOperacion',{id:operation.id,version:operation.version,datos:datos,confirmacion:plan.confirmacion});
+            if(life.alive()&&!closed)end(response.operacion);
+          }catch(error){if(life.alive()&&!closed){plan=null;preview.hidden=true;save.textContent=operation?'Revisar cambios':'Registrar operación';status.classList.add('ro-error');status.textContent=error.message||'No fue posible guardar.';}}
+          finally{busy=false;if(!closed){grid.inert=false;save.disabled=false;cancel.disabled=false;close.disabled=false;}}
+        },{signal:local.signal});
+        dialog.showModal();
+        const firstMissing=opts.completeMissing
+          ? (!client.value?client:(!String(bl.value||'').trim()?bl:null))
+          : null;
+        (firstMissing || (opts.doOnly?doInput:ref)).focus();
+      });
+    }
+    /** @param {HTMLElement} root @returns {void} */
+    function operations(root){
+      if(window.ROModule)window.ROModule.destroy();const life=lifecycle(root);window.ROModule=life;
+      const status=root.querySelector('[data-role=status]'),filters=root.querySelector('[data-role=filters]'),tbody=root.querySelector('[data-role=rows]');
+      let records=[],page=1,pages=1,seq=0;
+      function message(s,error){status.textContent=s;status.classList.toggle('ro-error',!!error);}
+      function render(r){records=r.registros;page=r.page;pages=r.pages;tbody.replaceChildren();Object.keys(r.kpis).forEach(function(k){root.querySelector('[data-kpi='+k+']').textContent=String(r.kpis[k]);});
+        if(!records.length){const tr=node('tr'),td=node('td','No hay operaciones para esta búsqueda.');td.colSpan=6;tr.append(td);tbody.append(tr);}
+        records.forEach(function(op){const tr=node('tr');[op.id,op.referenciaAg,op.cliente,op.blGuia].forEach(function(v,i){const td=node('td',v||'Pendiente');if(i===1)td.className='ro-ref';tr.append(td);});const d=node('td');if(op.do)d.textContent=op.do;else{const span=node('span','D.O. pendiente');span.className='ro-badge';d.append(span);}const action=node('td'),b=node('button','Editar');b.type='button';b.className='ro-button';b.dataset.edit=op.id;action.append(b);tr.append(d,action);tbody.append(tr);});
+        root.querySelector('[data-role=count]').textContent=r.total+' operación(es)';root.querySelector('[data-role=page]').textContent=page+' / '+pages;root.querySelector('[data-action=prev]').disabled=page<=1;root.querySelector('[data-action=next]').disabled=page>=pages;
+      }
+      async function load(p){const request=++seq;message('Consultando operaciones…');root.setAttribute('aria-busy','true');try{const result=await rpc('roListarOperaciones',{busqueda:filters.elements.busqueda.value,page:p||1,pageSize:25,pendientes:filters.elements.pendientes.checked});if(life.alive()&&request===seq){render(result);message('');}}catch(e){if(life.alive()&&request===seq)message(e.message,true);}finally{if(life.alive()&&request===seq)root.removeAttribute('aria-busy');}}
+      filters.addEventListener('submit',function(e){e.preventDefault();void load(1);},{signal:life.signal});
+      root.addEventListener('click',async function(e){const button=e.target.closest('button');if(!button||!root.contains(button)||button.disabled)return;
+        const action=button.dataset.action;
+        if(action==='refresh')return void load(page);if(action==='prev')return void load(page-1);if(action==='next')return void load(page+1);
+        if(action==='create'||button.dataset.edit){button.disabled=true;try{let operation=null;if(button.dataset.edit){const record=records.find(function(op){return op.id===button.dataset.edit;});if(!record)return;const fresh=await rpc('roConsultarOperacion',record.referenciaAg);if(!fresh.existe)throw new Error('La referencia cambió. Actualice el listado.');operation=fresh.operacion;}const result=await editor(root,life,{operation:operation});if(result&&life.alive()){await load(page);message('Operación '+result.referenciaAg+' guardada correctamente.');}}catch(error){if(life.alive())message(error.message,true);}finally{if(life.alive())button.disabled=false;}}
+      },{signal:life.signal});void load(1);
+    }
+    /** @param {HTMLElement} root @returns {void} */
+    function payment(root) {
+      const life = lifecycle(root);
+      const form = root.closest('form');
+      const host = form || root.closest('#main-module-container') || root.parentElement;
+      const status = root.querySelector('[data-role=status]');
+      let current = null, seq = 0, writingFields = false;
+      const fields = {};
+      ['referenciaAg','cliente','docTransporte','doNumber'].forEach(function(key) {
+        const found = host.querySelectorAll('[data-ro-campo="'+key+'"]');
+        if (found.length === 1) fields[key] = found[0];
+      });
+      function message(value,error) { status.textContent=value; status.classList.toggle('ro-error',!!error); }
+      if (!form || Object.keys(fields).length !== 4) { message('La consulta de operaciones no está conectada al formulario. Contacte al administrador.',true); return; }
+      ['cliente','docTransporte','doNumber'].forEach(function(key) {
+        const input=fields[key];
+        if (input.tagName === 'SELECT') { input.inert=true; input.setAttribute('aria-disabled','true'); }
+        else input.readOnly=true;
+      });
+      function put(input,value) {
+        if(input.tagName === 'SELECT' && !Array.from(input.options).some(function(option){return option.value === value;})) input.add(new Option(value,value));
+        input.value=value;
+        input.dispatchEvent(new Event('input',{bubbles:true}));
+        input.dispatchEvent(new Event('change',{bubbles:true}));
+      }
+      function incomplete(op) { return !op.cliente || !op.blGuia || !/^\d{9}$/.test(op.do); }
+      function apply(op) {
+        writingFields=true;
+        try {
+          current=op;form.dataset.roVersion=op.version;
+          put(fields.referenciaAg,op.referenciaAg);put(fields.cliente,op.cliente);put(fields.docTransporte,op.blGuia);put(fields.doNumber,op.do);
+        } finally { writingFields=false; }
+        message(incomplete(op) ? 'Completa cliente, BL/Guía y D.O. antes de solicitar el pago.' : 'Operación vinculada: '+op.referenciaAg+' · D.O. '+op.do,incomplete(op));
+      }
+      function clear() {
+        current=null;delete form.dataset.roVersion;
+        ['cliente','docTransporte','doNumber'].forEach(function(key){fields[key].value='';});
+        const warning=form.querySelector('#sp-bl-warning');
+        if(warning){warning.textContent='';warning.style.display='none';}
+      }
+      function reference() { return fields.referenciaAg.value.trim().toUpperCase().replace(/\s+/g,''); }
+      fields.referenciaAg.addEventListener('input',function() {
+        if(writingFields)return;
+        if(!current || reference() !== current.referenciaAg){seq++;clear();message('Consulte la referencia AG para cargar cliente, BL/Guía y D.O.');}
+      },{signal:life.signal});
+      async function consult() {
+        const request=++seq,ref=reference();
+        clear();
+        if(!/^(AGM|AGX)\d{4}$/.test(ref)) throw new Error('Use AGM o AGX seguido de cuatro números.');
+        message('Consultando operación…');
+        const result=await rpc('roConsultarOperacion',ref);
+        if(!life.alive() || request !== seq || ref !== reference())return null;
+        if(!result.existe){message('La referencia no está registrada. Use Nueva operación.',true);return null;}
+        apply(result.operacion);return result.operacion;
+      }
+      root.addEventListener('click',async function(event) {
+        const button=event.target.closest('button');
+        if(!button || !root.contains(button) || button.disabled)return;
+        button.disabled=true;
+        try {
+          if(button.dataset.action === 'consult'){await consult();return;}
+          const ref=reference();
+          let result=null;
+          if(button.dataset.action === 'create') result=await editor(root,life,{reference:ref,requireDo:false,lockReference:true});
+          else if(button.dataset.action === 'assign') {
+            const op=await consult();if(!op)return;
+            result=await editor(root,life,{operation:op,requireDo:true,lockReference:true});
+          }
+          if(result && life.alive() && reference() === ref){
+            fields.referenciaAg.value=result.referenciaAg;
+            await consult();
+          }
+        } catch(error) { if(life.alive())message(error.message || 'No fue posible completar la operación.',true); }
+        finally { if(life.alive())button.disabled=false; }
+      },{signal:life.signal});
+      fields.referenciaAg.addEventListener('blur',function() {
+        if(/^(AGM|AGX)\d{4}$/.test(reference()))void consult().catch(function(error){if(life.alive())message(error.message,true);});
+      },{signal:life.signal});
+      form.addEventListener('ag:payment-reset',function(){seq++;clear();message('Consulte la referencia AG para cargar cliente, BL/Guía y D.O.');},{signal:life.signal});
+      form.addEventListener('ag:payment-ready',function(){if(current && reference() === current.referenciaAg)apply(current);},{signal:life.signal});
+      message('Consulte la referencia AG para cargar cliente, BL/Guía y D.O.');
+    }
+    window.ROShared=Object.freeze({
+      /** @param {HTMLElement} root @param {Object} opts @returns {Promise<RoClientOperation|null>} */
+      edit:async function(root,opts){const life=lifecycle(root);try{return await editor(root,life,opts);}finally{life.destroy();}},
+      mount:function(root){if(root.dataset.roMounted)return;root.dataset.roMounted='1';if(root.dataset.roMount==='operations')operations(root);else if(root.dataset.roMount==='payment')payment(root);}});
+  }
+  document.querySelectorAll('[data-ro-mount]:not([data-ro-mounted])').forEach(function(root){window.ROShared.mount(root);});
+})();
+</script>
