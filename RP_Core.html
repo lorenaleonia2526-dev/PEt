@@ -1,0 +1,979 @@
+'use strict';
+
+  /*
+
+   * Evita colisiones si el usuario abre y cierra
+
+   * el módulo varias veces durante la misma sesión.
+
+   */
+
+  if (
+
+    window.RPModule &&
+
+    typeof window.RPModule.destroy === 'function'
+
+  ) {
+
+    window.RPModule.destroy();
+
+  }
+
+  const STORAGE_DRAFT =
+
+    'AG_RP_TEMP_DRAFT';
+
+  const STORAGE_RESTORE =
+
+    'AG_RP_RESTORE_DRAFT';
+
+  const PAGE_SIZE = 25;
+
+  const state = {
+
+    rawRecords: [],
+
+    filteredRecords: [],
+
+    groupedOperations: [],
+
+    providers: null,
+
+    clients: null,
+
+    currentOperation: null,
+
+    editingReference: '',
+
+    page: 1,
+
+    pageSize: PAGE_SIZE,
+
+    sort: {
+
+      key: 'etaEtd',
+
+      direction: 'asc'
+
+    },
+
+    expanded: {},
+
+    period: null,
+
+      periodSelection: {
+
+    anio: null,
+
+    mes: null
+
+  },
+
+  chartAnalysis: {
+
+    field: 'usd',
+
+    currency: 'USD',
+
+    period: 'LAST_4'
+
+  },
+
+  registerDirty: false,
+
+    editDirty: false,
+
+    confirmCallback: null,
+
+    destroyed: false
+
+  };
+
+  const el = {};
+  const rpRoot = document.getElementById('rp-module');
+  const rpLifecycle = new AbortController();
+  const rpObserver = new MutationObserver(function() { if (!rpRoot.isConnected) destroy(); });
+  rpObserver.observe(document.body,{childList:true,subtree:true});
+  document.addEventListener('ag:session-ended',destroy,{signal:rpLifecycle.signal});
+  const rpMutations = new Set();
+  /** @returns {boolean} */
+  function rpAlive_() { return !state.destroyed && rpRoot.isConnected && window.AGLogin && window.AGLogin.isAuthorized(); }
+  /** @returns {Object<string,Function>} */
+  function rp_rpc() {
+    const handlers = {success:function(){},failure:handleServerError};
+    const runner = {
+      withSuccessHandler:function(fn){handlers.success=fn;return runner;},
+      withFailureHandler:function(fn){handlers.failure=fn;return runner;}
+    };
+    ['rpObtenerDashboard','rpBuscarOperacion','rpObtenerClientesActivos','rpObtenerProveedoresActivos','rpCrearOperacion','rpGuardarProvisiones','rpObtenerDetalleOperacion','rpActualizarProvisiones','rpAnularOperacionProvisionada','rpExportarXlsx'].forEach(function(name) {
+      runner[name]=function(...args) {
+        const mutation=['rpCrearOperacion','rpGuardarProvisiones','rpActualizarProvisiones','rpAnularOperacionProvisionada'].includes(name);
+        if (mutation && rpMutations.has('write')) return;
+        if (mutation) rpMutations.add('write');
+        Promise.resolve().then(function() {
+          if (!rpAlive_() || typeof window.agRunAuthenticated !== 'function') throw new Error('Autentícate nuevamente para continuar.');
+          return window.agRunAuthenticated(name,...args);
+        }).then(function(result) { if(rpAlive_()) handlers.success(result); })
+          .catch(function(error) { if(!state.destroyed && rpRoot.isConnected) handlers.failure(error); })
+          .finally(function() { if(mutation) rpMutations.delete('write'); });
+      };
+    });
+    return runner;
+  }
+
+  const moneyFormatter = new Intl.NumberFormat(
+
+    'es-CO',
+
+    {
+
+      minimumFractionDigits: 0,
+
+      maximumFractionDigits: 2
+
+    }
+
+  );
+
+  const integerFormatter = new Intl.NumberFormat(
+
+    'es-CO',
+
+    {
+
+      maximumFractionDigits: 0
+
+    }
+
+  );
+
+  /* =========================================================
+
+     INICIALIZACIÓN
+
+     ========================================================= */
+
+  function init() {
+    if (!rpAlive_()) { destroy(); return; }
+
+    cacheElements();
+
+    bindEvents();
+    el['rp-btn-repair-operation'].addEventListener('click',function() { void repairProvisionOperation('register'); },{signal:rpLifecycle.signal});
+    el['rp-btn-repair-edit-operation'].addEventListener('click',function() { void repairProvisionOperation('edit'); },{signal:rpLifecycle.signal});
+
+    fillHistorySelectors();
+
+    handleDraftRestore();
+
+    loadDashboard();
+
+  }
+
+  function cacheElements() {
+
+    [
+
+      'rp-period-label',
+
+      'rp-kpi-period-label',
+
+      'rp-kpi-usd',
+
+      'rp-kpi-eur',
+
+      'rp-kpi-cop',
+
+      'rp-kpi-operations',
+
+      'rp-kpi-provider-count',
+
+      'rp-kpi-usd-change',
+
+      'rp-kpi-eur-change',
+
+      'rp-kpi-cop-change',
+
+      'rp-kpi-operations-change',
+
+      'rp-filter-month',
+
+      'rp-filter-week',
+
+      'rp-filter-client',
+
+      'rp-filter-reference',
+
+      'rp-filter-provider',
+
+      'rp-filter-search',
+
+      'rp-chart-usd',
+
+      'rp-chart-cop',
+
+      'rp-chart-providers',
+
+      'rp-provider-legend',
+
+      'rp-chart-total-usd',
+
+      'rp-chart-total-cop',
+
+      'rp-chart-total-providers',
+
+      'rp-table-body',
+
+      'rp-table-count',
+
+      'rp-pagination-info',
+
+      'rp-page-prev',
+
+      'rp-page-next',
+
+      'rp-btn-new',
+
+      'rp-btn-history',
+
+      'rp-btn-clear-filters',
+
+      'rp-btn-export',
+
+        'rp-modal-register',
+
+        'rp-modal-operation',
+
+        'rp-modal-edit',
+
+        'rp-modal-history',
+
+        'rp-modal-analysis',
+
+        'rp-modal-confirm',
+
+      'rp-register-reference',
+
+      'rp-btn-search-operation',
+
+      'rp-register-do-warning',
+
+      'rp-register-summary',
+
+      'rp-register-summary-ref',
+
+      'rp-register-summary-client',
+
+      'rp-register-summary-do',
+      'rp-register-summary-bl',
+      'rp-btn-repair-operation',
+      'rp-btn-repair-edit-operation',
+
+      'rp-register-lines',
+
+      'rp-register-report-date',
+
+      'rp-register-eta',
+
+      'rp-register-rows',
+
+      'rp-btn-add-provider',
+
+      'rp-btn-create-provider',
+
+      'rp-btn-save-register',
+
+      'rp-btn-save-and-new',
+
+      'rp-operation-reference',
+
+      'rp-operation-client',
+
+      'rp-operation-bl',
+
+      'rp-operation-do',
+
+      'rp-operation-do-warning',
+
+      'rp-btn-save-operation',
+
+      'rp-edit-ref',
+
+      'rp-edit-client',
+
+      'rp-edit-do',
+
+      'rp-edit-eta',
+
+      'rp-edit-rows',
+
+      'rp-btn-edit-add-provider',
+
+      'rp-btn-save-edit',
+
+      'rp-btn-annul',
+
+      'rp-history-month',
+
+      'rp-history-year',
+
+      'rp-btn-load-history',
+
+      'rp-analysis-title',
+
+      'rp-analysis-description',
+
+      'rp-analysis-period',
+
+      'rp-analysis-month-wrap',
+
+      'rp-analysis-month',
+
+      'rp-analysis-year-wrap',
+
+      'rp-analysis-year',
+
+      'rp-analysis-chart-title',
+
+      'rp-analysis-total',
+
+      'rp-analysis-chart',
+
+      'rp-analysis-period-label',
+
+      'rp-btn-analysis-export',
+
+      'rp-confirm-title',
+
+      'rp-confirm-message',
+
+      'rp-confirm-cancel',
+
+      'rp-confirm-ok',
+
+      'rp-provider-list',
+
+      'rp-loading',
+
+      'rp-loading-text',
+
+      'rp-toast-zone'
+
+    ].forEach(function (id) {
+
+      el[id] = document.getElementById(id);
+
+    });
+
+  }
+
+function bindEvents() {
+
+  el['rp-btn-new']
+
+    .addEventListener(
+
+      'click',
+
+      openRegisterModal
+
+    );
+
+  el['rp-btn-history']
+
+    .addEventListener(
+
+      'click',
+
+      function () {
+
+        openModal('history');
+
+      }
+
+    );
+
+  el['rp-chart-usd']
+
+    .addEventListener(
+
+      'click',
+
+      function () {
+
+        openAnalysisModal(
+
+          'usd',
+
+          'USD'
+
+        );
+
+      }
+
+    );
+
+  el['rp-chart-cop']
+
+    .addEventListener(
+
+      'click',
+
+      function () {
+
+        openAnalysisModal(
+
+          'cop',
+
+          'COP'
+
+        );
+
+      }
+
+    );
+
+    el['rp-btn-search-operation']
+
+      .addEventListener(
+
+        'click',
+
+        searchRegisterOperation
+
+      );
+
+      el['rp-register-reference']
+
+    .addEventListener(
+
+    'blur',
+
+    function () {
+
+      const value =
+
+        normalizeReference(
+
+          this.value
+
+        );
+
+      this.value = value;
+
+    }
+
+  );
+
+        el['rp-register-reference']
+
+  .addEventListener(
+
+    'input',
+
+    function () {
+
+      const reference =
+
+        normalizeReference(
+
+          this.value
+
+        );
+
+      this.value =
+
+        reference;
+
+      if (
+
+        state.currentOperation &&
+
+        reference !==
+
+          state.currentOperation
+
+            .referenciaAg
+
+      ) {
+
+        state.currentOperation =
+
+          null;
+
+        el[
+
+          'rp-register-summary'
+
+        ].hidden = true;
+
+        el[
+
+          'rp-register-lines'
+
+        ].hidden = true;
+
+        el[
+
+          'rp-register-do-warning'
+
+        ].classList.remove(
+
+          'is-visible'
+
+        );
+
+        state.operationLookupSeq = (state.operationLookupSeq || 0) + 1;
+
+      }
+
+      markRegisterDirty();
+
+    }
+
+  );
+
+    el['rp-btn-add-provider']
+
+      .addEventListener(
+
+        'click',
+
+        function () {
+
+          addProvisionRow(
+
+            el['rp-register-rows'],
+
+            null,
+
+            'register'
+
+          );
+
+          markRegisterDirty();
+
+        }
+
+      );
+
+    el['rp-btn-edit-add-provider']
+
+      .addEventListener(
+
+        'click',
+
+        function () {
+
+          addProvisionRow(
+
+            el['rp-edit-rows'],
+
+            null,
+
+            'edit'
+
+          );
+
+          state.editDirty = true;
+
+        }
+
+      );
+
+    el['rp-btn-create-provider']
+
+      .addEventListener(
+
+        'click',
+
+        openProviderModule
+
+      );
+
+    el['rp-btn-save-register']
+
+      .addEventListener(
+
+        'click',
+
+        function () {
+
+          saveProvision(false);
+
+        }
+
+      );
+
+    el['rp-btn-save-and-new']
+
+      .addEventListener(
+
+        'click',
+
+        function () {
+
+          saveProvision(true);
+
+        }
+
+      );
+
+    el['rp-btn-save-operation']
+
+      .addEventListener(
+
+        'click',
+
+        saveNewOperation
+
+      );
+
+    el['rp-btn-save-edit']
+
+      .addEventListener(
+
+        'click',
+
+        saveEdit
+
+      );
+
+    el['rp-btn-annul']
+
+      .addEventListener(
+
+        'click',
+
+        requestAnnul
+
+      );
+
+    el['rp-btn-load-history']
+
+      .addEventListener(
+
+        'click',
+
+        loadHistoricalPeriod
+
+      );
+
+    el['rp-btn-clear-filters']
+
+      .addEventListener(
+
+        'click',
+
+        clearFilters
+
+      );
+
+    el['rp-btn-export']
+
+      .addEventListener(
+
+        'click',
+
+        exportXlsx
+
+      );
+
+    el['rp-page-prev']
+
+      .addEventListener(
+
+        'click',
+
+        function () {
+
+          if (state.page > 1) {
+
+            state.page -= 1;
+
+            renderTable();
+
+          }
+
+        }
+
+      );
+
+    el['rp-page-next']
+
+      .addEventListener(
+
+        'click',
+
+        function () {
+
+          const totalPages =
+
+            getTotalPages();
+
+          if (state.page < totalPages) {
+
+            state.page += 1;
+
+            renderTable();
+
+          }
+
+        }
+
+      );
+
+    [
+
+      'rp-filter-month',
+
+      'rp-filter-week',
+
+      'rp-filter-client',
+
+      'rp-filter-provider'
+
+    ].forEach(function (id) {
+
+      el[id].addEventListener(
+
+        'change',
+
+        applyFilters
+
+      );
+
+    });
+
+    [
+
+      'rp-filter-reference',
+
+      'rp-filter-search'
+
+    ].forEach(function (id) {
+
+      el[id].addEventListener(
+
+        'input',
+
+        debounce(
+
+          applyFilters,
+
+          180
+
+        )
+
+      );
+
+    });
+
+    document
+
+      .querySelectorAll(
+
+        '#rp-module th[data-sort]'
+
+      )
+
+      .forEach(function (header) {
+
+        header.addEventListener(
+
+          'click',
+
+          function () {
+
+            setSort(
+
+              header.dataset.sort
+
+            );
+
+          }
+
+        );
+
+      });
+
+    document
+
+      .querySelectorAll(
+
+        '#rp-module [data-rp-close]'
+
+      )
+
+      .forEach(function (button) {
+
+        button.addEventListener(
+
+          'click',
+
+          function () {
+
+            closeModal(
+
+              button.dataset.rpClose
+
+            );
+
+          }
+
+        );
+
+      });
+
+    el['rp-confirm-cancel']
+
+      .addEventListener(
+
+        'click',
+
+        function () {
+
+          closeModal('confirm');
+
+          state.confirmCallback = null;
+
+        }
+
+      );
+
+    el['rp-confirm-ok']
+
+      .addEventListener(
+
+        'click',
+
+        function () {
+
+          const callback =
+
+            state.confirmCallback;
+
+          state.confirmCallback = null;
+
+          closeModal('confirm');
+
+          if (
+
+            typeof callback === 'function'
+
+          ) {
+
+            callback();
+
+          }
+
+        }
+
+      );
+
+    [
+
+      el['rp-register-rows'],
+
+      el['rp-edit-rows']
+
+    ].forEach(function (tbody) {
+
+      tbody.addEventListener(
+
+        'click',
+
+        handleProvisionRowClick
+
+      );
+
+      tbody.addEventListener(
+
+        'change',
+
+        handleProvisionRowChange
+
+      );
+
+      tbody.addEventListener(
+
+        'input',
+
+        handleProvisionRowInput
+
+      );
+
+      tbody.addEventListener(
+
+        'focusin',
+
+        handleMoneyFocus
+
+      );
+
+      tbody.addEventListener(
+
+        'focusout',
+
+        handleMoneyBlur
+
+      );
+
+    });
+
+    el['rp-operation-do']
+
+      .addEventListener(
+
+        'input',
+
+        function () {
+
+          this.value =
+
+            this.value
+
+              .replace(/\D/g, '')
+
+              .slice(0, 9);
+
+          toggleOperationDoWarning();
+
+        }
+
+      );
+
+    window.addEventListener(
+
+      'beforeunload',
+
+      handleBeforeUnload
+
+    );
+
+    const backButton =
+
+      document.querySelector(
+
+        '.ag-back-button'
+
+      );
+
+    if (backButton) {
+
+      backButton.addEventListener(
+
+        'click',
+
+        handleModuleBack,
+
+        true
+
+      );
+
+      state.backButton = backButton;
+
+    }
+
+  }
