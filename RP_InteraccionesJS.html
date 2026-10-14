@@ -1,0 +1,103 @@
+/** @param {MouseEvent} event @returns {void} */
+function handleProvisionRowClick(event) {
+  const button = event.target.closest('.rp-row-remove');
+  if (!button) return;
+  const row = button.closest('tr');
+  const tbody = row.parentElement;
+  if (tbody.children.length <= 1) { showToast('Debe conservar por lo menos un proveedor.', 'error'); return; }
+  row.remove();
+  if (button.dataset.mode === 'register') markRegisterDirty(); else state.editDirty = true;
+}
+/** @param {Event} event @returns {void} */
+function handleProvisionRowChange(event) {
+  const target = event.target;
+  if (target.classList.contains('rp-date-input')) syncEtaDate(target.closest('tbody'), target.value, target.closest('tr'));
+  if (target.closest('tbody') === el['rp-register-rows']) markRegisterDirty(); else state.editDirty = true;
+}
+/** @param {Event} event @returns {void} */
+function handleProvisionRowInput(event) {
+  if (event.target.closest('tbody') === el['rp-register-rows']) markRegisterDirty(); else state.editDirty = true;
+}
+/** @param {HTMLElement} tbody @param {string} value @param {HTMLElement} sourceRow @returns {void} */
+function syncEtaDate(tbody, value, sourceRow) {
+  if (!value) return;
+  tbody.querySelectorAll('.rp-date-input').forEach(function(input) { if (input.closest('tr') !== sourceRow) input.value = value; });
+}
+/** @param {FocusEvent} event @returns {void} */
+function handleMoneyFocus(event) {
+  const input = event.target;
+  if (input.classList.contains('rp-money-input')) input.value = input.dataset.raw || '';
+}
+/** @param {FocusEvent} event @returns {void} */
+function handleMoneyBlur(event) {
+  const input = event.target;
+  if (!input.classList.contains('rp-money-input')) return;
+  const number = parseMoney(input.value);
+  input.dataset.raw = number > 0 ? String(number) : '';
+  input.value = number > 0 ? moneyFormatter.format(number) : '';
+}
+/** @param {HTMLInputElement|null} input @returns {number} */
+function getMoneyValue(input) {
+  if (!input) return 0;
+  if (document.activeElement === input) return parseMoney(input.value);
+  return input.dataset.raw ? Number(input.dataset.raw) || 0 : parseMoney(input.value);
+}
+/** @param {unknown} value @returns {number} */
+function parseMoney(value) {
+  if (value === null || value === undefined || value === '') return 0;
+  if (typeof value === 'number') return value;
+  let text = String(value).trim().replace(/\s/g, '');
+  if (!text) return 0;
+  const comma = text.includes(','), dot = text.includes('.');
+  if (comma && dot) text = text.lastIndexOf(',') > text.lastIndexOf('.') ? text.replace(/\./g, '').replace(',', '.') : text.replace(/,/g, '');
+  else if (comma) {
+    const parts = text.split(',');
+    text = parts.length === 2 && parts[1].length <= 2 ? parts[0].replace(/\./g, '') + '.' + parts[1] : text.replace(/,/g, '');
+  } else if (dot) {
+    const parts = text.split('.');
+    if (parts.length > 2 || (parts.length === 2 && parts[1].length === 3)) text = text.replace(/\./g, '');
+  }
+  const number = Number(text);
+  return Number.isFinite(number) ? number : 0;
+}
+/** @param {string} name @returns {void} */
+function openModal(name) {
+  if (state.destroyed) return;
+  const modal = el['rp-modal-' + name];
+  if (!modal) return;
+  modal.classList.add('is-open');
+  document.body.style.overflow = 'hidden';
+}
+/** @param {string} name @param {boolean=} force @returns {void} */
+function closeModal(name, force) {
+  if (name === 'register' && state.registerDirty && force !== true) {
+    showConfirm({title:'Salir sin guardar', message:'La información diligenciada se perderá si cierras este formulario.', confirmText:'Salir sin guardar', onConfirm:function() { state.registerDirty = false; resetRegisterForm(); closeModal('register', true); }});
+    return;
+  }
+  if (name === 'edit' && state.editDirty && force !== true) {
+    showConfirm({title:'Descartar cambios', message:'Los cambios realizados en esta provisión no se han guardado.', confirmText:'Descartar cambios', onConfirm:function() { state.editDirty = false; closeModal('edit', true); }});
+    return;
+  }
+  const modal = el['rp-modal-' + name];
+  if (modal) modal.classList.remove('is-open');
+  if (!document.querySelector('#rp-module .rp-modal-layer.is-open')) document.body.style.overflow = '';
+}
+/** @param {{title?:string,message?:string,confirmText?:string,onConfirm?:Function}} config @returns {void} */
+function showConfirm(config) {
+  el['rp-confirm-title'].textContent = config.title || 'Confirmación';
+  el['rp-confirm-message'].textContent = config.message || '';
+  el['rp-confirm-ok'].textContent = config.confirmText || 'Continuar';
+  state.confirmCallback = config.onConfirm || null;
+  openModal('confirm');
+}
+/** @param {BeforeUnloadEvent} event @returns {void} */
+function handleBeforeUnload(event) {
+  if (!state.registerDirty && !state.editDirty) return;
+  event.preventDefault(); event.returnValue = '';
+}
+/** @param {MouseEvent} event @returns {void} */
+function handleModuleBack(event) {
+  if (!state.registerDirty && !state.editDirty) return;
+  event.preventDefault(); event.stopImmediatePropagation();
+  showConfirm({title:'Salir del módulo', message:'Hay información sin guardar. Si sales ahora se perderá.', confirmText:'Salir del módulo', onConfirm:function() { state.registerDirty = false; state.editDirty = false; showDashboard(); }});
+}
