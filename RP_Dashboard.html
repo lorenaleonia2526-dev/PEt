@@ -1,0 +1,905 @@
+<div class="rp-shell">
+
+    <!-- =====================================================
+
+         H1 · CABECERA GENERAL DEL MÓDULO
+
+         ===================================================== -->
+
+    <header class="rp-hero">
+
+      <div class="rp-hero-copy">
+
+        <span class="rp-eyebrow">
+
+          Módulo 03 · Control semanal
+
+        </span>
+
+        <h1>
+
+          Reporte de provisiones
+
+        </h1>
+
+        <p>
+
+          Controla los pagos previstos por operación,
+
+          proveedor y moneda. La vista mantiene únicamente
+
+          dos meses activos para conservar velocidad y claridad.
+
+        </p>
+
+        <div
+
+          class="rp-period-label"
+
+          id="rp-period-label"
+
+        >
+
+          Cargando período...
+
+        </div>
+
+      </div>
+
+      <div class="rp-hero-actions">
+
+        <button
+
+          type="button"
+
+          class="rp-main-action"
+
+          id="rp-btn-new"
+
+        >
+
+          <span>＋</span>
+
+          Registrar provisión
+
+        </button>
+
+        <button
+
+          type="button"
+
+          class="rp-secondary-hero-action"
+
+          id="rp-btn-history"
+
+        >
+
+          Ver meses anteriores
+
+        </button>
+
+      </div>
+
+    </header>
+
+    <!-- =====================================================
+
+         H2 · INDICADORES
+
+         ===================================================== -->
+
+    <section class="rp-section">
+
+      <div class="rp-section-head">
+
+        <div class="rp-section-title-wrap">
+
+          <span>Resumen inmediato</span>
+
+          <h2>
+
+            Semana en foco
+
+          </h2>
+
+          <p
+
+            class="rp-section-description"
+
+            id="rp-kpi-period-label"
+
+          >
+
+            Comparación frente a la semana anterior.
+
+          </p>
+
+        </div>
+
+      </div>
+
+      <div class="rp-kpi-grid">
+
+        <article
+
+          class="rp-kpi"
+
+          style="--rp-kpi-glow:rgba(113,160,247,0.19);"
+
+        >
+
+          <span class="rp-kpi-label">
+
+            USD provisionado
+
+          </span>
+
+          <h3 id="rp-kpi-usd">
+
+            USD 0
+
+          </h3>
+
+          <div class="rp-kpi-meta">
+
+            <span>vs. semana anterior</span>
+
+            <span
+
+              class="rp-kpi-change is-flat"
+
+              id="rp-kpi-usd-change"
+
+            >
+
+              0%
+
+            </span>
+
+          </div>
+
+        </article>
+
+        <article
+
+          class="rp-kpi"
+
+          style="--rp-kpi-glow:rgba(142,112,174,0.18);"
+
+        >
+
+          <span class="rp-kpi-label">
+
+            EUR provisionado
+
+          </span>
+
+          <h3 id="rp-kpi-eur">
+
+            EUR 0
+
+          </h3>
+
+          <div class="rp-kpi-meta">
+
+            <span>vs. semana anterior</span>
+
+            <span
+
+              class="rp-kpi-change is-flat"
+
+              id="rp-kpi-eur-change"
+
+            >
+
+              0%
+
+            </span>
+
+          </div>
+
+        </article>
+
+        <article
+
+          class="rp-kpi"
+
+          style="--rp-kpi-glow:rgba(112,177,171,0.18);"
+
+        >
+
+          <span class="rp-kpi-label">
+
+            COP provisionado
+
+          </span>
+
+          <h3 id="rp-kpi-cop">
+
+            COP 0
+
+          </h3>
+
+          <div class="rp-kpi-meta">
+
+            <span>vs. semana anterior</span>
+
+            <span
+
+              class="rp-kpi-change is-flat"
+
+              id="rp-kpi-cop-change"
+
+            >
+
+              0%
+
+            </span>
+
+          </div>
+
+        </article>
+
+        <article
+
+          class="rp-kpi"
+
+          style="--rp-kpi-glow:rgba(35,30,84,0.12);"
+
+        >
+
+          <span class="rp-kpi-label">
+
+            Operaciones
+
+          </span>
+
+          <h3 id="rp-kpi-operations">
+
+            0
+
+          </h3>
+
+          <div class="rp-kpi-meta">
+
+            <span id="rp-kpi-provider-count">
+
+              0 proveedores
+
+            </span>
+
+            <span
+
+              class="rp-kpi-change is-flat"
+
+              id="rp-kpi-operations-change"
+
+            >
+
+              0%
+
+            </span>
+
+          </div>
+
+        </article>
+
+      </div>
+
+    </section>
+
+    <!-- =====================================================
+
+         H2 · FILTROS
+
+         ===================================================== -->
+
+    <section class="rp-section">
+
+      <div class="rp-section-head">
+
+        <div class="rp-section-title-wrap">
+
+          <span>Lectura operativa</span>
+
+          <h2>
+
+            Filtros del reporte
+
+          </h2>
+
+          <p class="rp-section-description">
+
+            Tabla, indicadores y gráficos responden
+
+            simultáneamente a estos filtros.
+
+          </p>
+
+        </div>
+
+      </div>
+
+      <div class="rp-filter-panel">
+
+        <div class="rp-filter-grid">
+
+          <div class="rp-field">
+
+            <label for="rp-filter-month">
+
+              Mes
+
+            </label>
+
+            <select id="rp-filter-month">
+
+              <option value="">
+
+                Todos
+
+              </option>
+
+            </select>
+
+          </div>
+
+          <div class="rp-field">
+
+            <label for="rp-filter-week">
+
+              Semana
+
+            </label>
+
+            <select id="rp-filter-week">
+
+              <option value="">
+
+                Todas
+
+              </option>
+
+            </select>
+
+          </div>
+
+          <div class="rp-field">
+
+            <label for="rp-filter-client">
+
+              Cliente
+
+            </label>
+
+            <select id="rp-filter-client">
+
+              <option value="">
+
+                Todos
+
+              </option>
+
+            </select>
+
+          </div>
+
+          <div class="rp-field">
+
+            <label for="rp-filter-reference">
+
+              Referencia AG
+
+            </label>
+
+            <input
+
+              type="text"
+
+              id="rp-filter-reference"
+
+              placeholder="AGM0000 / AGX0000"
+
+              maxlength="7"
+
+              autocomplete="off"
+
+            >
+
+          </div>
+
+          <div class="rp-field">
+
+            <label for="rp-filter-provider">
+
+              Proveedor
+
+            </label>
+
+            <select id="rp-filter-provider">
+
+              <option value="">
+
+                Todos
+
+              </option>
+
+            </select>
+
+          </div>
+
+          <div class="rp-field">
+
+            <label for="rp-filter-search">
+
+              Buscar
+
+            </label>
+
+            <input
+
+              type="search"
+
+              id="rp-filter-search"
+
+              placeholder="D.O., cliente, proveedor..."
+
+              autocomplete="off"
+
+            >
+
+          </div>
+
+          <button
+
+            type="button"
+
+            class="rp-clear-filters"
+
+            id="rp-btn-clear-filters"
+
+          >
+
+            Limpiar
+
+          </button>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- =====================================================
+
+         H2 · GRÁFICOS
+
+         ===================================================== -->
+
+    <section class="rp-section">
+
+      <div class="rp-section-head">
+
+        <div class="rp-section-title-wrap">
+
+          <span>Distribución semanal</span>
+
+          <h2>
+
+            Provisiones por moneda
+
+          </h2>
+
+          <p class="rp-section-description">
+
+            Barras apiladas por semana.
+
+            Azul = importación.
+
+            Violeta = exportación.
+
+          </p>
+
+        </div>
+
+      </div>
+
+      <div class="rp-chart-grid">
+
+        <article class="rp-chart-card">
+
+          <div class="rp-chart-head">
+
+            <h3>USD por semana</h3>
+
+            <span
+
+              class="rp-chart-total"
+
+              id="rp-chart-total-usd"
+
+            >
+
+              USD 0
+
+            </span>
+
+          </div>
+
+          <div
+
+            id="rp-chart-usd"
+
+            class="rp-chart"
+
+          ></div>
+
+          <div class="rp-chart-legend">
+
+            <span class="rp-legend-item">
+
+              <span
+
+                class="rp-legend-dot"
+
+                style="background:#3E58B0;"
+
+              ></span>
+
+              Importación
+
+            </span>
+
+            <span class="rp-legend-item">
+
+              <span
+
+                class="rp-legend-dot"
+
+                style="background:#8E70AE;"
+
+              ></span>
+
+              Exportación
+
+            </span>
+
+          </div>
+
+        </article>
+
+        <article class="rp-chart-card rp-provider-card">
+
+        <div class="rp-chart-head">
+
+          <div>
+
+            <h3>Distribución por proveedor</h3>
+
+            <p class="rp-chart-subtitle">
+
+              Participación de provisiones activas según los filtros actuales.
+
+            </p>
+
+          </div>
+
+          <span
+
+            class="rp-chart-total"
+
+            id="rp-chart-total-providers"
+
+          >
+
+            0 proveedores
+
+          </span>
+
+        </div>
+
+        <div class="rp-provider-chart-layout">
+
+          <div
+
+            id="rp-chart-providers"
+
+            class="rp-provider-donut"
+
+          ></div>
+
+          <div
+
+            id="rp-provider-legend"
+
+            class="rp-provider-legend"
+
+          ></div>
+
+        </div>
+
+        <div class="rp-provider-ring-help">
+
+          <span>
+
+            Anillo exterior · USD
+
+          </span>
+
+          <span>
+
+            Anillo interior · COP
+
+          </span>
+
+        </div>
+
+      </article>
+
+        <article class="rp-chart-card">
+
+          <div class="rp-chart-head">
+
+            <h3>COP por semana</h3>
+
+            <span
+
+              class="rp-chart-total"
+
+              id="rp-chart-total-cop"
+
+            >
+
+              COP 0
+
+            </span>
+
+          </div>
+
+          <div
+
+            id="rp-chart-cop"
+
+            class="rp-chart"
+
+          ></div>
+
+          <div class="rp-chart-legend">
+
+            <span class="rp-legend-item">
+
+              <span
+
+                class="rp-legend-dot"
+
+                style="background:#3E58B0;"
+
+              ></span>
+
+              Importación
+
+            </span>
+
+            <span class="rp-legend-item">
+
+              <span
+
+                class="rp-legend-dot"
+
+                style="background:#8E70AE;"
+
+              ></span>
+
+              Exportación
+
+            </span>
+
+          </div>
+
+        </article>
+
+      </div>
+
+    </section>
+
+    <!-- =====================================================
+
+         H2 · TABLA
+
+         ===================================================== -->
+
+    <section class="rp-section">
+
+      <div class="rp-section-head">
+
+        <div class="rp-section-title-wrap">
+
+          <span>Detalle consolidado</span>
+
+          <h2>
+
+            Operaciones provisionadas
+
+          </h2>
+
+          <p class="rp-section-description">
+
+            Una fila por operación.
+
+            Haz clic para consultar sus proveedores.
+
+          </p>
+
+        </div>
+
+      </div>
+
+      <div class="rp-table-card">
+
+        <div class="rp-table-toolbar">
+
+          <div class="rp-table-toolbar-left">
+
+            <h3>
+
+              Provisiones registradas
+
+            </h3>
+
+            <span id="rp-table-count">
+
+              0 operaciones
+
+            </span>
+
+          </div>
+
+          <div class="rp-table-toolbar-actions">
+
+            <button
+
+              type="button"
+
+              class="rp-small-button"
+
+              id="rp-btn-export"
+
+            >
+
+              ⇩ Exportar XLSX
+
+            </button>
+
+          </div>
+
+        </div>
+
+        <div class="rp-table-scroll">
+
+          <table class="rp-table">
+
+            <thead>
+
+              <tr>
+
+                <th
+
+                  data-sort="referenciaAg"
+
+                >
+
+                  Referencia AG
+
+                </th>
+
+                <th data-sort="do">
+
+                  D.O.
+
+                </th>
+
+                <th data-sort="cliente">
+
+                  Cliente
+
+                </th>
+
+                <th data-sort="etaEtd">
+
+                  ETA/ETD
+
+                </th>
+
+                <th data-sort="usd">
+
+                  USD
+
+                </th>
+
+                <th data-sort="eur">
+
+                  EUR
+
+                </th>
+
+                <th data-sort="cop">
+
+                  COP
+
+                </th>
+
+                <th>
+
+                  Proveedores
+
+                </th>
+
+                <th>
+
+                  Editar
+
+                </th>
+
+              </tr>
+
+            </thead>
+
+            <tbody id="rp-table-body"></tbody>
+
+          </table>
+
+        </div>
+
+        <div class="rp-pagination">
+
+          <span
+
+            class="rp-pagination-info"
+
+            id="rp-pagination-info"
+
+          >
+
+            Sin registros
+
+          </span>
+
+          <div class="rp-pagination-actions">
+
+            <button
+
+              type="button"
+
+              class="rp-page-button"
+
+              id="rp-page-prev"
+
+            >
+
+              ←
+
+            </button>
+
+            <button
+
+              type="button"
+
+              class="rp-page-button"
+
+              id="rp-page-next"
+
+            >
+
+              →
+
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+  </div>
