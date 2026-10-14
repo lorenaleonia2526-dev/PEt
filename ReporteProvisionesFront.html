@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <?!= include('RP_Estilos'); ?>
+  <?!= include('RO_Estilos'); ?>
+</head>
+<body>
+<div id="rp-module">
+  <?!= include('RP_Dashboard'); ?>
+  <?!= include('RP_Modales'); ?>
+</div>
+<?!= include('RO_Javascript'); ?>
+<script>
+(function () {
+  <?!= include('RP_Core'); ?>
+  <?!= include('RP_DashboardJS'); ?>
+  <?!= include('RP_ProvisionesJS'); ?>
+  <?!= include('RP_InteraccionesJS'); ?>
+  <?!= include('RP_UtilidadesJS'); ?>
+})();
+</script>
+</body>
+</html>
