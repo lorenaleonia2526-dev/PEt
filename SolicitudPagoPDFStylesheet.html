@@ -1,0 +1,615 @@
+<style>
+
+    :root {
+
+      --ink: #111111;
+
+      --paper: #ffffff;
+
+      --workspace: #e8eaf0;
+
+      --brand: #231e54;
+
+      --brand-soft: #3e58b0;
+
+      --line: #1d1d1d;
+
+      --muted: #6b7280;
+
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+
+      margin: 0;
+
+      min-height: 100%;
+
+      background: var(--workspace);
+
+      color: var(--ink);
+
+      font-family: Arial, Helvetica, sans-serif;
+
+    }
+
+    .pdf-toolbar {
+
+      position: sticky;
+
+      top: 0;
+
+      z-index: 20;
+
+      min-height: 58px;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: space-between;
+
+      gap: 16px;
+
+      padding: 10px 22px;
+
+      background: var(--brand);
+
+      color: #fff;
+
+      box-shadow: 0 3px 18px rgba(35, 30, 84, 0.24);
+
+    }
+
+    .toolbar-title { min-width: 0; }
+
+    .toolbar-title strong { display: block; font-size: 15px; }
+
+    .toolbar-title span { display: block; margin-top: 2px; font-size: 11px; opacity: .72; }
+
+    .toolbar-actions { display: flex; gap: 8px; }
+
+    .toolbar-actions button {
+
+      min-height: 36px;
+
+      padding: 0 15px;
+
+      border: 1px solid rgba(255,255,255,.28);
+
+      border-radius: 999px;
+
+      background: #fff;
+
+      color: var(--brand);
+
+      font: 700 12px Arial, Helvetica, sans-serif;
+
+      cursor: pointer;
+
+    }
+
+    .toolbar-actions button.secondary { background: transparent; color: #fff; }
+
+    .pdf-workspace {
+
+      min-height: calc(100vh - 58px);
+
+      display: flex;
+
+      justify-content: center;
+
+      align-items: flex-start;
+
+      padding: 28px 16px 56px;
+
+      overflow: auto;
+
+    }
+
+    .pdf-page,
+
+    .pdf-loading,
+
+    .pdf-error {
+
+      width: 612pt;
+
+      min-width: 612pt;
+
+      height: 792pt;
+
+      min-height: 792pt;
+
+      background: var(--paper);
+
+      box-shadow: 0 14px 44px rgba(20, 26, 56, .18);
+
+    }
+
+    .pdf-page {
+
+      position: relative;
+
+      overflow: hidden;
+
+      padding: 37pt 43pt 34pt;
+
+    }
+
+    .document-stack {
+
+      width: 100%;
+
+      height: 100%;
+
+      display: grid;
+
+      grid-template-rows: 1fr 18pt 1fr;
+
+    }
+
+    .cut-line {
+
+      position: relative;
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 7pt;
+
+      color: #777;
+
+      font-size: 7pt;
+
+    }
+
+    .cut-line::before,
+
+    .cut-line::after {
+
+      content: '';
+
+      flex: 1;
+
+      border-top: .6pt dashed #888;
+
+    }
+
+    .payment-form {
+
+      position: relative;
+
+      width: 100%;
+
+      height: 100%;
+
+      overflow: hidden;
+
+      border: .8pt solid var(--line);
+
+      background: #fff;
+
+    }
+
+    .form-header {
+
+      height: 42pt;
+
+      display: grid;
+
+      grid-template-columns: 105pt 1fr;
+
+      border-bottom: .8pt solid var(--line);
+
+    }
+
+    .form-logo {
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      padding: 4pt 7pt;
+
+      border-right: .8pt solid var(--line);
+
+      overflow: hidden;
+
+    }
+
+    .form-logo img {
+
+      display: block;
+
+      max-width: 91pt;
+
+      max-height: 33pt;
+
+      object-fit: contain;
+
+    }
+
+    .form-title {
+
+      display: flex;
+
+      flex-direction: column;
+
+      justify-content: center;
+
+      align-items: center;
+
+      padding: 2pt 8pt;
+
+      text-align: center;
+
+      background: #347db7;
+
+      color: #fff;
+
+    }
+
+    .form-title-main { font-size: 10.2pt; font-weight: 700; line-height: 1.1; }
+
+    .form-title-code { margin-top: 3pt; font-size: 6.4pt; font-weight: 700; }
+
+    .form-body { padding: 6pt 8pt 5pt; }
+
+    .two-columns {
+
+      display: grid;
+
+      grid-template-columns: 1fr 1fr;
+
+      gap: 14pt;
+
+    }
+
+    .field-row {
+
+      min-width: 0;
+
+      min-height: 16pt;
+
+      display: flex;
+
+      align-items: flex-end;
+
+      margin-bottom: 1.3pt;
+
+    }
+
+    .field-label {
+
+      flex: 0 0 auto;
+
+      color: #000;
+
+      font-size: 7.8pt;
+
+      font-weight: 700;
+
+      line-height: 10.5pt;
+
+      white-space: nowrap;
+
+    }
+
+    .field-line {
+
+      position: relative;
+
+      flex: 1;
+
+      min-width: 18pt;
+
+      height: 12pt;
+
+      margin-left: 4pt;
+
+      border-bottom: .55pt solid var(--line);
+
+    }
+
+    .field-value {
+
+      position: absolute;
+
+      left: 2pt;
+
+      right: 2pt;
+
+      bottom: 1pt;
+
+      overflow: hidden;
+
+      color: #000;
+
+      font-size: 7.8pt;
+
+      font-weight: 400;
+
+      line-height: 10pt;
+
+      text-overflow: ellipsis;
+
+      white-space: nowrap;
+
+    }
+
+    .payment-methods {
+
+      min-height: 17pt;
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 15pt;
+
+      margin-bottom: 1pt;
+
+    }
+
+    .method-option {
+
+      display: inline-flex;
+
+      align-items: center;
+
+      gap: 4pt;
+
+      font-size: 7.8pt;
+
+      white-space: nowrap;
+
+    }
+
+    .method-box {
+
+      width: 8pt;
+
+      height: 8pt;
+
+      display: inline-flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      border: .65pt solid #000;
+
+      font-size: 7.8pt;
+
+      font-weight: 700;
+
+      line-height: 1;
+
+    }
+
+    .beneficiary-row {
+
+      min-height: 16pt;
+
+      display: grid;
+
+      grid-template-columns: 58pt minmax(0, 1fr) 18pt 90pt;
+
+      gap: 3pt;
+
+      align-items: end;
+
+      margin-bottom: 1pt;
+
+    }
+
+    .beneficiary-row .field-line { margin-left: 0; }
+
+    .client-order-row {
+
+      display: grid;
+
+      grid-template-columns: 34pt minmax(0, 1fr) 48pt minmax(0, 1fr);
+
+      gap: 3pt;
+
+      align-items: center;
+
+      min-height: 17pt;
+
+      margin: 1pt 0 2pt;
+
+    }
+
+    .total-row {
+
+      min-height: 18pt;
+
+      display: grid;
+
+      grid-template-columns: 105pt 1fr 28pt 105pt;
+
+      gap: 4pt;
+
+      align-items: end;
+
+      margin: 2pt 0 4pt;
+
+    }
+
+    .value-box { position: relative; height: 14pt; border-bottom: .65pt solid #000; }
+
+    .value-box .field-value { text-align: right; font-weight: 700; }
+
+    .concept-grid {
+
+      display: grid;
+
+      grid-template-columns: minmax(0, 1fr) 105pt;
+
+      gap: 16pt;
+
+      margin-top: 5pt;
+
+    }
+
+    .concept-title {
+
+      height: 12pt;
+
+      padding-left: 2pt;
+
+      border-bottom: .65pt solid #000;
+
+      font-size: 7.8pt;
+
+      font-weight: 700;
+
+      text-decoration: underline;
+
+    }
+
+    .observations {
+
+      height: 42pt;
+
+      margin-top: 3pt;
+
+      padding: 2pt 3pt;
+
+      border-bottom: .55pt solid #000;
+
+      overflow: hidden;
+
+      font-size: 7.5pt;
+
+      line-height: 9.8pt;
+
+      white-space: pre-wrap;
+
+    }
+
+    .concept-value {
+
+      height: 14pt;
+
+      margin-top: 3pt;
+
+      border-bottom: .55pt solid #000;
+
+      position: relative;
+
+    }
+
+    .concept-value .field-value { text-align: right; font-weight: 700; }
+
+    .approval-section {
+
+      display: grid;
+
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+
+      gap: 15pt;
+
+      margin-top: 8pt;
+
+    }
+
+    .approval-item { min-width: 0; text-align: center; }
+
+    .approval-line { position: relative; height: 14pt; border-bottom: .7pt solid #000; }
+
+    .approval-line .field-value { text-align: center; }
+
+    .approval-label { margin-top: 2pt; font-size: 7.4pt; font-weight: 700; white-space: nowrap; }
+
+    .copy-label {
+
+      position: absolute;
+
+      right: 4pt;
+
+      bottom: 2pt;
+
+      color: #777;
+
+      font-size: 6.4pt;
+
+      letter-spacing: .08em;
+
+    }
+
+    .pdf-loading,
+
+    .pdf-error {
+
+      display: grid;
+
+      place-items: center;
+
+      padding: 40pt;
+
+      text-align: center;
+
+    }
+
+    .loading-spinner {
+
+      width: 30px;
+
+      height: 30px;
+
+      margin: 0 auto 14px;
+
+      border: 3px solid #d9ddf2;
+
+      border-top-color: var(--brand-soft);
+
+      border-radius: 50%;
+
+      animation: spin .8s linear infinite;
+
+    }
+
+    .pdf-loading strong { display: block; font-size: 16px; }
+
+    .pdf-loading span { display: block; margin-top: 6px; color: var(--muted); font-size: 12px; }
+
+    .error-box { max-width: 460px; padding: 22px; border: 1px solid #dc2626; border-radius: 12px; background: #fef2f2; color: #991b1b; text-align: left; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @page { size: letter portrait; margin: 0; }
+
+    @media print {
+
+      html, body { width: 612pt; height: 792pt; background: #fff; }
+
+      .pdf-toolbar { display: none !important; }
+
+      .pdf-workspace { display: block; min-height: 0; padding: 0; overflow: visible; }
+
+      .pdf-page { width: 612pt; min-width: 612pt; height: 792pt; min-height: 792pt; box-shadow: none; }
+
+    }
+
+    @media screen and (max-width: 860px) {
+
+      .pdf-toolbar { align-items: flex-start; flex-direction: column; }
+
+      .pdf-workspace { justify-content: flex-start; }
+
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+
+      .loading-spinner { animation: none; }
+
+    }
+
+  </style>
