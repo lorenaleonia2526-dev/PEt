@@ -1,0 +1,1632 @@
+<script>
+/**
+ * @typedef {{success:Function,failure:Function}} SpRpcHandlers
+ * @typedef {{withSuccessHandler:Function,withFailureHandler:Function,
+ * listarSolicitudesPago_SP:Function,getDatosInicialesSolicitud_SP:Function,
+ * verificarDocumentoTransporteSolicitud_SP:Function,guardarSolicitudPago_SP:Function,
+ * obtenerUrlReimpresionSolicitudPagoPDF_SP:Function}} SpRpcRunner
+ */
+(function installSolicitudesPago() {
+  const moduleRoot = document.querySelector('.sp-module');
+  if (typeof window.sp_disposeSolicitud === 'function') window.sp_disposeSolicitud();
+  let disposed = false;
+  const popupWindows = new Set();
+  /** @returns {boolean} */
+  function sp_isCurrentModule_() {
+    return !disposed && !!moduleRoot && moduleRoot.isConnected &&
+      document.querySelector('.sp-module') === moduleRoot;
+  }
+  /** @returns {void} */
+  function dispose() {
+    disposed = true;
+    popupWindows.forEach(function(popup) { if (!popup.closed) popup.close(); });
+    popupWindows.clear();
+    window.sp_provList = [];
+    window.sp_historyData = [];
+    window.sp_filteredHistory = [];
+    document.removeEventListener('ag:session-ended', dispose);
+  }
+  window.sp_disposeSolicitud = dispose;
+  document.addEventListener('ag:session-ended', dispose);
+  /**
+   * Preserve callback contracts; AGLogin.run supplies token and both google.script.run handlers.
+   * @returns {SpRpcRunner}
+   */
+  function sp_rpc() {
+    /** @type {SpRpcHandlers} */
+    const handlers = {success: function() {}, failure: function() {}};
+    /** @type {SpRpcRunner} */
+    const runner = {
+      withSuccessHandler: function(callback) { handlers.success = callback; return runner; },
+      withFailureHandler: function(callback) { handlers.failure = callback; return runner; }
+    };
+    ['listarSolicitudesPago_SP', 'getDatosInicialesSolicitud_SP',
+      'verificarDocumentoTransporteSolicitud_SP', 'guardarSolicitudPago_SP',
+      'obtenerUrlReimpresionSolicitudPagoPDF_SP'].forEach(function(name) {
+      /** @param {...unknown} args @returns {void} */
+      runner[name] = function(...args) {
+        Promise.resolve().then(function() {
+          if (!sp_isCurrentModule_() || typeof window.agRunAuthenticated !== 'function') {
+            throw new Error('Vuelva a abrir el módulo desde Inicio.');
+          }
+          return window.agRunAuthenticated(name, ...args);
+        }).then(function(result) {
+          if (sp_isCurrentModule_()) handlers.success(result);
+        }).catch(function(error) {
+          if (sp_isCurrentModule_()) handlers.failure(error);
+          else popupWindows.forEach(function(popup) { if (!popup.closed) popup.close(); });
+        });
+      };
+    });
+    return runner;
+  }
+  /** @param {Window|null} popup @returns {void} */
+  function trackPopup(popup) { if (popup) popupWindows.add(popup); }
+  /** @param {Window|null} popup @returns {void} */
+  function closePopup(popup) {
+    if (!popup) return;
+    popupWindows.delete(popup);
+    if (!popup.closed) popup.close();
+  }
+
+
+  window.sp_provList = [];
+
+  window.sp_historyData = [];
+
+  window.sp_filteredHistory = [];
+
+  window.sp_currentPage = 1;
+
+  window.sp_pageSize = 50;
+
+  /* ============================================================
+
+     OBTENER USUARIO FIREBASE
+
+     ============================================================ */
+
+  /** @returns {Object} */
+  function sp_getFirebaseUser() {
+
+    if (
+
+      typeof firebase === 'undefined' ||
+
+      !firebase.apps ||
+
+      !firebase.apps.length
+
+    ) {
+
+      throw new Error(
+
+        'Firebase no está disponible o todavía no ha sido inicializado.'
+
+      );
+
+    }
+
+    if (!window.AGLogin || !window.AGLogin.isAuthorized() || typeof window.agRunAuthenticated !== 'function') {
+      throw new Error('Debe iniciar sesión nuevamente.');
+    }
+    const user = firebase.auth().currentUser;
+
+    if (!user) {
+
+      throw new Error(
+
+        'No hay un usuario autenticado en Firebase.'
+
+      );
+
+    }
+
+    return user;
+
+  }
+
+  /* ============================================================
+
+     HISTÓRICO RECIENTE
+
+     ============================================================ */
+
+  /** @returns {void} */
+  window.sp_loadHistory = function() {
+
+    let firebaseUser;
+
+    try {
+
+      firebaseUser = sp_getFirebaseUser();
+
+    } catch (error) {
+
+      sp_showHistoryError(error.message);
+
+      return;
+
+    }
+
+    sp_setHistoryLoading(true);
+
+    sp_rpc()
+
+      .withSuccessHandler(function(response) {
+
+        sp_setHistoryLoading(false);
+
+        if (!response || !response.success) {
+
+          sp_showHistoryError(
+
+            response && response.message
+
+              ? response.message
+
+              : 'No fue posible consultar las solicitudes.'
+
+          );
+
+          return;
+
+        }
+
+        window.sp_historyData = Array.isArray(response.registros)
+
+          ? response.registros
+
+          : [];
+
+        window.sp_filteredHistory = window.sp_historyData.slice();
+
+        window.sp_currentPage = 1;
+
+        sp_renderPeriods(response.periodos || []);
+
+        sp_renderHistory();
+
+      })
+
+      .withFailureHandler(function(error) {
+
+        sp_setHistoryLoading(false);
+
+        sp_showHistoryError(
+
+          error && error.message
+
+            ? error.message
+
+            : 'No fue posible consultar las solicitudes.'
+
+        );
+
+      })
+
+      .listarSolicitudesPago_SP();
+
+  };
+
+  /** @param {boolean} isLoading @returns {void} */
+  function sp_setHistoryLoading(isLoading) {
+
+    const loading = document.getElementById('sp-history-loading');
+
+    const error = document.getElementById('sp-history-error');
+
+    const empty = document.getElementById('sp-history-empty');
+
+    const table = document.getElementById('sp-table-wrap');
+
+    const pagination = document.getElementById('sp-pagination');
+
+    if (loading) loading.style.display = isLoading ? 'grid' : 'none';
+
+    if (isLoading) {
+
+      if (error) error.style.display = 'none';
+
+      if (empty) empty.style.display = 'none';
+
+      if (table) table.style.display = 'none';
+
+      if (pagination) pagination.style.display = 'none';
+
+    }
+
+  }
+
+  /** @param {string} message @returns {void} */
+  function sp_showHistoryError(message) {
+
+    const loading = document.getElementById('sp-history-loading');
+
+    const error = document.getElementById('sp-history-error');
+
+    const empty = document.getElementById('sp-history-empty');
+
+    const table = document.getElementById('sp-table-wrap');
+
+    const pagination = document.getElementById('sp-pagination');
+
+    if (loading) loading.style.display = 'none';
+
+    if (empty) empty.style.display = 'none';
+
+    if (table) table.style.display = 'none';
+
+    if (pagination) pagination.style.display = 'none';
+
+    if (error) {
+
+      error.innerHTML =
+
+        '<div><strong>No se pudo cargar el histórico</strong>' +
+
+        sp_escapeHtml(message || 'Error desconocido.') +
+
+        '</div>';
+
+      error.style.display = 'grid';
+
+    }
+
+  }
+
+  /** @param {Object[]} periodos @returns {void} */
+  function sp_renderPeriods(periodos) {
+
+    const container = document.getElementById('sp-periods');
+
+    if (!container) return;
+
+    container.innerHTML = periodos
+
+      .map(function(periodo) {
+
+        return (
+
+          '<span class="sp-period-chip">' +
+
+          sp_escapeHtml(periodo.etiqueta || '') +
+
+          '</span>'
+
+        );
+
+      })
+
+      .join('');
+
+  }
+
+  /** @returns {void} */
+  window.sp_changePageSize = function() {
+
+    const selector = document.getElementById('sp-page-size');
+
+    const nuevoTamano = selector
+
+      ? Number(selector.value)
+
+      : 50;
+
+    window.sp_pageSize = nuevoTamano === 100 ? 100 : 50;
+
+    window.sp_currentPage = 1;
+
+    sp_renderHistory();
+
+  };
+
+  /** @returns {void} */
+  window.sp_previousPage = function() {
+
+    if (window.sp_currentPage <= 1) return;
+
+    window.sp_currentPage -= 1;
+
+    sp_renderHistory();
+
+  };
+
+  /** @returns {void} */
+  window.sp_nextPage = function() {
+
+    const totalPaginas = Math.max(
+
+      1,
+
+      Math.ceil(window.sp_filteredHistory.length / window.sp_pageSize)
+
+    );
+
+    if (window.sp_currentPage >= totalPaginas) return;
+
+    window.sp_currentPage += 1;
+
+    sp_renderHistory();
+
+  };
+
+  window.sp_applyHistoryFilter = function() {
+
+    const input = document.getElementById('sp-history-search');
+
+    const termino = sp_normalizeSearch(input ? input.value : '');
+
+    window.sp_filteredHistory = !termino
+
+      ? window.sp_historyData.slice()
+
+      : window.sp_historyData.filter(function(registro) {
+
+          const valores = [
+
+            registro.consecutivo,
+
+            registro.fechaSolicitud,
+
+            registro.personaSolicita,
+
+            registro.beneficiario,
+
+            registro.cliente,
+
+            registro.referenciaAg,
+
+            sp_plainAmounts(registro),
+
+            registro.fechaPago
+
+          ];
+
+          return sp_normalizeSearch(valores.join(' ')).indexOf(termino) !== -1;
+
+        });
+
+    window.sp_currentPage = 1;
+
+    sp_renderHistory();
+
+  };
+
+  /** @param {*} value @returns {string} */
+  function sp_normalizeSearch(value) {
+
+    return String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+  }
+
+  /** @param {Object} registro @returns {string} */
+  function sp_plainAmounts(registro) {
+
+    return ['USD ' + (registro.usd || ''), 'EUR ' + (registro.eur || ''), 'COP ' + (registro.cop || '')].join(' ');
+
+  }
+
+  /** @returns {void} */
+  function sp_renderHistory() {
+
+    const loading = document.getElementById('sp-history-loading');
+
+    const error = document.getElementById('sp-history-error');
+
+    const empty = document.getElementById('sp-history-empty');
+
+    const table = document.getElementById('sp-table-wrap');
+
+    const body = document.getElementById('sp-history-body');
+
+    const pagination = document.getElementById('sp-pagination');
+
+    const info = document.getElementById('sp-pagination-info');
+
+    const previous = document.getElementById('sp-prev-page');
+
+    const next = document.getElementById('sp-next-page');
+
+    const total = window.sp_filteredHistory.length;
+
+    if (loading) loading.style.display = 'none';
+
+    if (error) error.style.display = 'none';
+
+    if (!total) {
+
+      if (empty) empty.style.display = 'grid';
+
+      if (table) table.style.display = 'none';
+
+      if (pagination) pagination.style.display = 'none';
+
+      if (body) body.innerHTML = '';
+
+      return;
+
+    }
+
+    if (empty) empty.style.display = 'none';
+
+    if (table) table.style.display = 'block';
+
+    if (pagination) pagination.style.display = 'flex';
+
+    const totalPaginas = Math.max(
+
+      1,
+
+      Math.ceil(total / window.sp_pageSize)
+
+    );
+
+    if (window.sp_currentPage > totalPaginas) {
+
+      window.sp_currentPage = totalPaginas;
+
+    }
+
+    const inicio = (window.sp_currentPage - 1) * window.sp_pageSize;
+
+    const fin = Math.min(inicio + window.sp_pageSize, total);
+
+    const registrosPagina = window.sp_filteredHistory.slice(inicio, fin);
+
+    if (body) {
+
+      body.innerHTML = registrosPagina
+
+        .map(function(registro) {
+
+          return (
+
+            '<tr>' +
+
+              '<td><span class="sp-consecutive">' +
+
+                sp_escapeHtml(registro.consecutivo || 'Sin consecutivo') +
+
+              '</span></td>' +
+
+              '<td>' + sp_escapeHtml(registro.fechaSolicitud || '') + '</td>' +
+
+              '<td>' + sp_escapeHtml(registro.personaSolicita || '') + '</td>' +
+
+              '<td>' + sp_escapeHtml(registro.beneficiario || '') + '</td>' +
+
+              '<td>' + sp_escapeHtml(registro.cliente || '') + '</td>' +
+
+              '<td><span class="sp-reference">' +
+
+                sp_escapeHtml(registro.referenciaAg || '') +
+
+              '</span></td>' +
+
+              '<td>' + sp_renderAmounts(registro) + '</td>' +
+
+              '<td>' + sp_escapeHtml(registro.fechaPago || '') + '</td>' +
+
+              '<td><button type="button" class="sp-print-btn" onclick="sp_reprint(\'' +
+
+                sp_escapeHtml(sp_escapeJs(registro.consecutivo || '')) + '\')">Imprimir</button></td>' +
+
+            '</tr>'
+
+          );
+
+        })
+
+        .join('');
+
+    }
+
+    if (info) {
+
+      info.textContent =
+
+        'Mostrando ' + (inicio + 1) + '–' + fin +
+
+        ' de ' + total + ' solicitudes';
+
+    }
+
+    if (previous) previous.disabled = window.sp_currentPage <= 1;
+
+    if (next) next.disabled = window.sp_currentPage >= totalPaginas;
+
+  }
+
+  /** @param {Object} registro @returns {string} */
+  function sp_renderAmounts(registro) {
+
+    const valores = [];
+
+    if (Number(registro.usd) > 0) {
+
+      valores.push(sp_formatAmount(registro.usd, 'USD'));
+
+    }
+
+    if (Number(registro.eur) > 0) {
+
+      valores.push(sp_formatAmount(registro.eur, 'EUR'));
+
+    }
+
+    if (Number(registro.cop) > 0) {
+
+      valores.push(sp_formatAmount(registro.cop, 'COP'));
+
+    }
+
+    if (!valores.length) {
+
+      return '<span class="sp-amount">Sin valor</span>';
+
+    }
+
+    return (
+
+      '<div class="sp-amount-list">' +
+
+      valores
+
+        .map(function(valor) {
+
+          return '<span class="sp-amount">' + sp_escapeHtml(valor) + '</span>';
+
+        })
+
+        .join('') +
+
+      '</div>'
+
+    );
+
+  }
+
+  /** @param {number} valor @param {string} moneda @returns {string} */
+  function sp_formatAmount(valor, moneda) {
+
+    const numero = Number(valor) || 0;
+
+    const decimales = moneda === 'COP' ? 0 : 2;
+
+    return (
+
+      moneda + ' ' +
+
+      new Intl.NumberFormat('es-CO', {
+
+        minimumFractionDigits: decimales,
+
+        maximumFractionDigits: decimales
+
+      }).format(numero)
+
+    );
+
+  }
+
+  /* ============================================================
+
+     ABRIR MODAL
+
+     ============================================================ */
+
+  /** @returns {void} */
+  window.sp_openModal = function() {
+
+    const modal =
+
+      document.getElementById('sp-modal');
+
+    if (!modal) {
+
+      console.error(
+
+        'No se encontró #sp-modal.'
+
+      );
+
+      return;
+
+    }
+
+    const form = modal.querySelector('.sp-form');
+
+    if (form) { form.reset(); form.dispatchEvent(new Event('ag:payment-reset',{bubbles:true})); }
+
+    const nitInput = document.getElementById('sp-nit');
+
+    const solicitaInputInicial = document.getElementById('sp-solicita');
+
+    const warning = document.getElementById('sp-bl-warning');
+
+    if (nitInput) nitInput.value = '';
+
+    if (solicitaInputInicial) solicitaInputInicial.value = '';
+
+    if (warning) {
+
+      warning.textContent = '';
+
+      warning.style.display = 'none';
+
+    }
+
+    modal.style.display = 'flex';
+
+    /* ----------------------------------------------------------
+
+       FECHA DE SOLICITUD
+
+       ---------------------------------------------------------- */
+
+    const hoy = new Date();
+
+const year = hoy.getFullYear();
+
+const month =
+
+  String(hoy.getMonth() + 1).padStart(2, '0');
+
+const day =
+
+  String(hoy.getDate()).padStart(2, '0');
+
+const fechaHoy =
+
+  year + '-' + month + '-' + day;
+
+/**
+
+ * --------------------------------------------------------
+
+ * FECHA DE SOLICITUD
+
+ * --------------------------------------------------------
+
+ */
+
+const fechaSolicitudInput =
+
+  document.getElementById('sp-f-sol');
+
+if (fechaSolicitudInput) {
+
+  fechaSolicitudInput.value =
+
+    fechaHoy;
+
+}
+
+/**
+
+ * --------------------------------------------------------
+
+ * FECHA DE PAGO
+
+ * --------------------------------------------------------
+
+ *
+
+ * Por defecto será igual a la fecha de solicitud.
+
+ *
+
+ * El usuario puede modificarla manualmente.
+
+ */
+
+const fechaPagoInput =
+
+  document.getElementById('sp-f-pago');
+
+if (fechaPagoInput) {
+
+  fechaPagoInput.value =
+
+    fechaHoy;
+
+}
+
+    /* ----------------------------------------------------------
+
+       USUARIO FIREBASE
+
+       ---------------------------------------------------------- */
+
+    let firebaseUser;
+
+    try {
+
+      firebaseUser =
+
+        sp_getFirebaseUser();
+
+    } catch (error) {
+
+      console.error(error);
+
+      alert(
+
+        error.message
+
+      );
+
+      sp_closeModal();
+
+      return;
+
+    }
+
+    /* ----------------------------------------------------------
+
+       CARGAR DATOS DEL SERVIDOR
+
+       ---------------------------------------------------------- */
+
+    const formSequence = (form.dataset.spSequence = String(Number(form.dataset.spSequence || 0) + 1));
+    sp_rpc()
+
+      .withSuccessHandler(function(d) {
+        if (form.dataset.spSequence !== formSequence || modal.style.display === 'none') return;
+
+        if (!d) {
+
+          alert(
+
+            'No se recibieron datos del servidor.'
+
+          );
+
+          return;
+
+        }
+
+        if (!d.success) {
+
+          alert(
+
+            d.message ||
+
+            'No fue posible cargar los datos iniciales.'
+
+          );
+
+          return;
+
+        }
+
+        /* ------------------------------------------------------
+
+           USUARIO
+
+           ------------------------------------------------------ */
+
+        const solicitaInput =
+
+          document.getElementById(
+
+            'sp-solicita'
+
+          );
+
+        if (solicitaInput) {
+
+          solicitaInput.value =
+
+            d.usuario &&
+
+            d.usuario.nombre
+
+              ? d.usuario.nombre
+
+              : '';
+
+        }
+
+        /* ------------------------------------------------------
+
+           ÁREA
+
+           ------------------------------------------------------ */
+
+        const areaInput =
+
+          document.getElementById(
+
+            'sp-area'
+
+          );
+
+        if (areaInput) {
+
+          areaInput.value =
+
+            d.usuario &&
+
+            d.usuario.area
+
+              ? d.usuario.area
+
+              : '';
+
+        }
+
+        /* ------------------------------------------------------
+
+           PROVEEDORES
+
+           ------------------------------------------------------ */
+
+        sp_provList =
+
+          d.proveedores || [];
+
+        const selP =
+
+          document.getElementById(
+
+            'sp-beneficiario'
+
+          );
+
+        if (selP) {
+
+          selP.innerHTML =
+
+            '<option value="">-- Seleccionar --</option>' +
+
+            sp_provList
+
+              .map(function(p) {
+
+                return (
+
+                  '<option value="' +
+
+                  sp_escapeHtml(p.nombre) +
+
+                  '">' +
+
+                  sp_escapeHtml(p.nombre) +
+
+                  '</option>'
+
+                );
+
+              })
+
+              .join('');
+
+        }
+
+        /* ------------------------------------------------------
+
+           CLIENTES
+
+           ------------------------------------------------------ */
+
+        const selC =
+
+  document.getElementById(
+
+    'sp-cliente'
+
+  );
+
+if (selC) {
+
+  selC.innerHTML =
+
+    '<option value="">-- Seleccionar --</option>' +
+
+    (d.clientes || [])
+
+      .map(function(c) {
+
+        const nombreCliente =
+
+          c && c.nombre
+
+            ? c.nombre
+
+            : '';
+
+        return (
+
+          '<option value="' +
+
+          sp_escapeHtml(nombreCliente) +
+
+          '">' +
+
+          sp_escapeHtml(nombreCliente) +
+
+          '</option>'
+
+        );
+
+      })
+
+      .join('');
+
+}
+        form.dispatchEvent(new Event('ag:payment-ready',{bubbles:true}));
+      })
+
+      .withFailureHandler(function(error) {
+
+        console.error(
+
+          'Error llamando al servidor:',
+
+          error
+
+        );
+
+        alert(
+
+          'No fue posible cargar los datos de la solicitud.\n\n' +
+
+          (
+
+            error && error.message
+
+              ? error.message
+
+              : error
+
+          )
+
+        );
+
+      })
+
+      .getDatosInicialesSolicitud_SP();
+
+  };
+
+  /* ============================================================
+
+     CERRAR MODAL
+
+     ============================================================ */
+
+  /** @returns {void} */
+  window.sp_closeModal = function() {
+
+    const modal =
+
+      document.getElementById(
+
+        'sp-modal'
+
+      );
+
+    if (modal) {
+
+      modal.style.display =
+
+        'none';
+
+    }
+
+  };
+
+  /* ============================================================
+
+     CAMBIO DE BENEFICIARIO
+
+     ============================================================ */
+
+  /** @returns {void} */
+  window.sp_onProvChange = function() {
+
+    const beneficiarioInput =
+
+      document.getElementById(
+
+        'sp-beneficiario'
+
+      );
+
+    const nitInput =
+
+      document.getElementById(
+
+        'sp-nit'
+
+      );
+
+    if (!beneficiarioInput) {
+
+      return;
+
+    }
+
+    const val =
+
+      beneficiarioInput.value;
+
+    const match =
+
+      sp_provList.find(function(p) {
+
+        return p.nombre === val;
+
+      });
+
+    if (nitInput) {
+
+      nitInput.value =
+
+        match
+
+          ? match.nit
+
+          : '';
+
+    }
+
+  };
+
+  /** @returns {void} */
+  window.sp_checkBL = function() {
+
+    const warning = document.getElementById('sp-bl-warning');
+
+    const bl = sp_getValue('sp-doc-trans');
+
+    if (!warning) return;
+
+    warning.textContent = '';
+
+    warning.style.display = 'none';
+
+    if (!bl) return;
+
+    let firebaseUser;
+
+    try {
+
+      firebaseUser = sp_getFirebaseUser();
+
+    } catch (error) {
+
+      return;
+
+    }
+
+    sp_rpc()
+
+      .withSuccessHandler(function(response) {
+
+        if (sp_getValue('sp-doc-trans') !== bl || !response || !response.success || !response.duplicado) return;
+
+        const conceptos = (response.conceptos || []).join(', ') || 'Sin servicio registrado';
+
+        const solicitudes = (response.solicitudes || []).join(', ');
+
+        warning.textContent = 'Este BL ya tenía una solicitud por concepto de: ' + conceptos +
+
+          (solicitudes ? '. Solicitud(es): ' + solicitudes + '.' : '.');
+
+        warning.style.display = 'block';
+
+      })
+
+      .withFailureHandler(function(error) {
+        if (sp_getValue('sp-doc-trans') !== bl) return;
+        warning.textContent = error && error.message ? error.message : 'No fue posible comprobar el BL.';
+        warning.style.display = 'block';
+      })
+      .verificarDocumentoTransporteSolicitud_SP(bl);
+
+  };
+
+  /** @param {string} consecutivo @returns {void} */
+  window.sp_reprint = function(consecutivo) {
+
+    const pdfWindow = window.open('about:blank', '_blank');
+    trackPopup(pdfWindow);
+
+    if (pdfWindow) {
+
+      pdfWindow.document.write('<p style="font-family:Arial;padding:24px">Preparando reimpresión...</p>');
+
+    }
+
+    let firebaseUser;
+
+    try {
+
+      firebaseUser = sp_getFirebaseUser();
+
+    } catch (error) {
+
+      closePopup(pdfWindow);
+
+      alert(error.message);
+
+      return;
+
+    }
+
+    sp_rpc()
+
+      .withSuccessHandler(function(response) {
+
+        if (!response || !response.success || !response.pdfUrl) {
+
+          closePopup(pdfWindow);
+
+          alert(response && response.message ? response.message : 'No fue posible reimprimir la solicitud.');
+
+          return;
+
+        }
+
+        if (pdfWindow && !pdfWindow.closed) {
+          popupWindows.delete(pdfWindow);
+          pdfWindow.location.replace(response.pdfUrl);
+        }
+        else alert('El navegador bloqueó la pestaña del PDF. Permita ventanas emergentes y vuelva a pulsar Imprimir.');
+
+      })
+
+      .withFailureHandler(function(error) {
+
+        closePopup(pdfWindow);
+
+        alert(error && error.message ? error.message : 'No fue posible reimprimir la solicitud.');
+
+      })
+
+      .obtenerUrlReimpresionSolicitudPagoPDF_SP(consecutivo);
+
+  };
+
+  /* ============================================================
+
+     ENVIAR FORMULARIO
+
+     ============================================================ */
+
+  /** @param {SubmitEvent} e @returns {void} */
+  window.sp_submitForm = function(e) {
+
+    e.preventDefault();
+    const submitButton = document.getElementById('sp-btn-sub');
+    if (submitButton && submitButton.disabled) return;
+    const submittedForm = document.querySelector('#sp-modal .sp-form');
+    if (submittedForm && !submittedForm.dataset.roVersion) { alert('Consulta la operación antes de guardar la solicitud.'); return; }
+    if (!/^\d{9}$/.test(sp_getValue('sp-do')) || !sp_getValue('sp-doc-trans') || !sp_getValue('sp-cliente')) { alert('Completa cliente, BL/Guía y un D.O. de nueve números en la operación antes de solicitar el pago.'); return; }
+    if (submittedForm && !submittedForm.reportValidity()) return;
+
+    const pdfWindow = window.open('about:blank', '_blank');
+    trackPopup(pdfWindow);
+
+    if (pdfWindow) {
+
+      pdfWindow.document.write('<p style="font-family:Arial;padding:24px">Guardando solicitud y preparando documento...</p>');
+
+    }
+
+    const button =
+
+      document.getElementById(
+
+        'sp-btn-sub'
+
+      );
+
+    if (button) {
+
+      button.disabled = true;
+
+      button.textContent =
+
+        'Guardando...';
+
+    }
+
+    /* ----------------------------------------------------------
+
+       USUARIO FIREBASE
+
+       ---------------------------------------------------------- */
+
+    let firebaseUser;
+
+    try {
+
+      firebaseUser =
+
+        sp_getFirebaseUser();
+
+    } catch (error) {
+      closePopup(pdfWindow);
+
+      if (button) {
+
+        button.disabled = false;
+
+        button.textContent =
+
+          'Guardar y Generar PDF';
+
+      }
+
+      alert(
+
+        error.message
+
+      );
+
+      return;
+
+    }
+
+    /* ----------------------------------------------------------
+
+       DATOS DEL FORMULARIO
+
+       ---------------------------------------------------------- */
+
+    const datos = {
+      operationVersion: submittedForm.dataset.roVersion || '',
+
+      referenciaAg:
+
+        sp_getValue(
+
+          'sp-referencia-ag'
+
+        ),
+
+      cliente:
+
+        sp_getValue(
+
+          'sp-cliente'
+
+        ),
+
+      tipoPago:
+
+        sp_getValue(
+
+          'sp-tipo-pago'
+
+        ),
+
+      beneficiario:
+
+        sp_getValue(
+
+          'sp-beneficiario'
+
+        ),
+
+      fechaPago:
+
+        sp_getValue(
+
+          'sp-f-pago'
+
+        ),
+
+      area:
+
+        sp_getValue(
+
+          'sp-area'
+
+        ),
+
+      docTransporte:
+
+        sp_getValue(
+
+          'sp-doc-trans'
+
+        ),
+
+      contenedor:
+
+        sp_getValue(
+
+          'sp-contenedor'
+
+        ),
+
+      servicio:
+
+        sp_getValue(
+
+          'sp-servicio'
+
+        ),
+
+      moneda:
+
+        sp_getValue(
+
+          'sp-moneda'
+
+        ),
+
+      valor:
+
+        sp_getValue(
+
+          'sp-valor'
+
+        ),
+
+      doNumber:
+
+        sp_getValue(
+
+          'sp-do'
+
+        ),
+
+      observaciones:
+
+        sp_getValue(
+
+          'sp-obs'
+
+        )
+
+    };
+
+    /* ----------------------------------------------------------
+
+       GUARDAR EN GOOGLE SHEETS
+
+       ---------------------------------------------------------- */
+
+    sp_rpc()
+
+      .withSuccessHandler(function(response) {
+
+        if (button) {
+
+          button.disabled = false;
+
+          button.textContent =
+
+            'Guardar y Generar PDF';
+
+        }
+
+        if (
+
+          !response ||
+
+          !response.success
+
+        ) {
+
+          alert(
+
+            response &&
+
+            response.message
+
+              ? response.message
+
+              : 'No fue posible guardar la solicitud.'
+
+          );
+
+          closePopup(pdfWindow);
+
+          return;
+
+        }
+
+        /* ------------------------------------------------------
+
+           SOLICITUD GUARDADA
+
+           ------------------------------------------------------ */
+
+        alert(
+
+          response.message ||
+
+          'Solicitud registrada correctamente.'
+
+        );
+
+        sp_closeModal();
+
+        sp_loadHistory();
+
+        const pdfUrl = response.pdfUrl || '';
+
+        if (pdfWindow && !pdfWindow.closed && pdfUrl) {
+
+          popupWindows.delete(pdfWindow);
+          pdfWindow.location.replace(pdfUrl);
+
+        } else {
+
+          closePopup(pdfWindow);
+
+          alert('La solicitud se guardó, pero no fue posible abrir el PDF. Utilice el botón Imprimir de la tabla.');
+
+        }
+
+      })
+
+      .withFailureHandler(function(error) {
+
+        if (button) {
+
+          button.disabled = false;
+
+          button.textContent =
+
+            'Guardar y Generar PDF';
+
+        }
+
+        console.error(
+
+          'Error guardando solicitud:',
+
+          error
+
+        );
+
+        alert(
+
+          'No fue posible guardar la solicitud.\n\n' +
+
+          (
+
+            error && error.message
+
+              ? error.message
+
+              : error
+
+          )
+
+        );
+
+        closePopup(pdfWindow);
+
+      })
+
+      .guardarSolicitudPago_SP(
+
+        datos
+
+      );
+
+  };
+
+  /* ============================================================
+
+     OBTENER VALOR DE CAMPO
+
+     ============================================================ */
+
+  /** @param {string} id @returns {string} */
+  function sp_getValue(id) {
+
+    const element =
+
+      document.getElementById(id);
+
+    if (!element) {
+
+      return '';
+
+    }
+
+    return element.value
+
+      ? element.value.trim()
+
+      : '';
+
+  }
+
+  /* ============================================================
+
+     ESCAPAR HTML
+
+     ============================================================ */
+
+  /** @param {*} value @returns {string} */
+  function sp_escapeHtml(value) {
+
+    if (
+
+      value === null ||
+
+      value === undefined
+
+    ) {
+
+      return '';
+
+    }
+
+    return value
+
+      .toString()
+
+      .replace(
+
+        /&/g,
+
+        '&amp;'
+
+      )
+
+      .replace(
+
+        /</g,
+
+        '&lt;'
+
+      )
+
+      .replace(
+
+        />/g,
+
+        '&gt;'
+
+      )
+
+      .replace(
+
+        /"/g,
+
+        '&quot;'
+
+      )
+
+      .replace(
+
+        /'/g,
+
+        '&#039;'
+
+      );
+
+  }
+
+  /** @param {*} value @returns {string} */
+  function sp_escapeJs(value) {
+
+    return String(value || '')
+
+      .replace(/\\/g, '\\\\')
+
+      .replace(/'/g, "\\'")
+
+      .replace(/\r/g, '')
+
+      .replace(/\n/g, ' ');
+
+  }
+
+  sp_loadHistory();
+
+
+})();
+</script>
