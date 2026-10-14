@@ -1,0 +1,100 @@
+<?!= agIncluirLoginParte_('LoginStylesheet'); ?>
+<div id="login-overlay">
+  <section class="ag-login-panel" aria-label="Acceso a AG Operations">
+    <div class="ag-login-brand">
+      <span class="ag-login-brand-mark">AG</span>
+      <span class="ag-login-brand-copy">
+        <strong>AG Operations</strong>
+        <span>Control operativo</span>
+      </span>
+    </div>
+
+    <div class="ag-login-content">
+      <span class="ag-login-eyebrow">Acceso institucional</span>
+      <h1 class="ag-login-title">Bienvenido de nuevo.</h1>
+      <p class="ag-login-description">
+        Ingresa con tu cuenta autorizada para gestionar solicitudes, provisiones, tarifas y cierres operativos.
+      </p>
+
+      <form id="login-form" onsubmit="handleLoginSubmit(event)">
+        <div class="ag-login-field">
+          <label for="login-email">Correo electrónico</label>
+          <div class="ag-login-input-wrap">
+            <span class="ag-login-input-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"></path><path d="m4 7 8 6 8-6"></path></svg>
+            </span>
+            <input
+              type="email"
+              id="login-email"
+              placeholder="correo@empresa.com"
+              autocomplete="username"
+              required
+            >
+          </div>
+        </div>
+
+        <div class="ag-login-field">
+          <label for="login-password">Contraseña</label>
+          <div class="ag-login-input-wrap">
+            <span class="ag-login-input-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>
+            </span>
+            <input
+              type="password"
+              id="login-password"
+              placeholder="Ingresa tu contraseña"
+              autocomplete="current-password"
+              required
+            >
+            <button
+              type="button"
+              id="toggle-password"
+              onclick="togglePasswordVisibility()"
+              aria-label="Mostrar contraseña"
+              title="Mostrar u ocultar contraseña"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"></path><circle cx="12" cy="12" r="2.6"></circle></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="ag-login-options">
+          <label class="ag-login-remember">
+            <input type="checkbox" id="remember-login">
+            Recordar correo
+          </label>
+
+          <button class="ag-login-link" type="button" onclick="handleForgotPassword()">
+            ¿Olvidaste tu contraseña?
+          </button>
+        </div>
+
+        <button type="submit" id="login-btn-submit">Continuar</button>
+        <p id="login-err" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+
+    <div class="ag-login-security">Autenticación segura</div>
+  </section>
+
+  <section class="ag-login-visual" aria-hidden="true">
+    <img
+      class="ag-login-visual-image"
+      src="https://drive.google.com/thumbnail?id=1zoRxL7xbDisNz8QWjCO1UnqVV8OcRJRZ&amp;sz=w1600"
+      alt=""
+      referrerpolicy="no-referrer"
+    >
+    <div class="ag-login-grid"></div>
+    <div class="ag-login-visual-copy">
+      <span class="ag-login-visual-label">Operaciones conectadas</span>
+      <div class="ag-login-visual-bottom">
+        <h2>Control que mueve carga</h2>
+        <div class="ag-login-visual-meta">
+          <span>AG Operations</span>
+          <span>Powered & Designed By Laura Peláez</span>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+<?!= agIncluirLoginParte_('LoginJavascript'); ?>
