@@ -1,0 +1,2814 @@
+<div class="ms-root" id="msRoot">
+
+  <style>
+    .ms-root {
+      --ms-primary: #231E54;
+      --ms-secondary: #3E58B0;
+      --ms-blue: #71A0F7;
+      --ms-blue-soft: #8BB2FC;
+      --ms-purple: #8E70AE;
+      --ms-teal: #70B1AB;
+      --ms-bg: #F9FAFE;
+      --ms-white: #FFFFFF;
+      --ms-text: #231E54;
+      --ms-muted: #73758A;
+      --ms-border: #E8EAF3;
+
+      --ms-success: #377D71;
+      --ms-attention: #B58A23;
+      --ms-risk: #C46A32;
+      --ms-critical: #B54747;
+
+      width: 100%;
+      min-height: 100%;
+      box-sizing: border-box;
+      background: var(--ms-bg);
+      color: var(--ms-text);
+      font-family: "Ubuntu", Arial, sans-serif;
+      position: relative;
+    }
+
+    .ms-root *,
+    .ms-root *::before,
+    .ms-root *::after {
+      box-sizing: border-box;
+    }
+
+    .ms-shell {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    .ms-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 24px;
+      margin-bottom: 22px;
+    }
+
+    .ms-eyebrow {
+      margin: 0 0 7px;
+      color: var(--ms-secondary);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+    }
+
+    .ms-title {
+      margin: 0;
+      color: var(--ms-primary);
+      font-size: 29px;
+      line-height: 1.15;
+      font-weight: 700;
+    }
+
+    .ms-subtitle {
+      max-width: 760px;
+      margin: 9px 0 0;
+      color: var(--ms-muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .ms-period {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      margin-top: 14px;
+      padding: 0 11px;
+      border-radius: 999px;
+      background: rgba(113, 160, 247, .12);
+      color: var(--ms-secondary);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .ms-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 9px;
+    }
+
+    .ms-button {
+      appearance: none;
+      border: 0;
+      border-radius: 10px;
+      min-height: 40px;
+      padding: 0 16px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      transition:
+        transform .16s ease,
+        box-shadow .16s ease,
+        opacity .16s ease;
+    }
+
+    .ms-button:hover {
+      transform: translateY(-1px);
+    }
+
+    .ms-button:disabled {
+      cursor: not-allowed;
+      opacity: .55;
+      transform: none;
+    }
+
+    .ms-button-primary {
+      background: var(--ms-primary);
+      color: var(--ms-white);
+      box-shadow: 0 7px 18px rgba(35, 30, 84, .18);
+    }
+
+    .ms-button-secondary {
+      background: var(--ms-white);
+      color: var(--ms-primary);
+      border: 1px solid var(--ms-border);
+    }
+
+    .ms-card {
+      background: var(--ms-white);
+      border: 1px solid var(--ms-border);
+      border-radius: 16px;
+      box-shadow: 0 7px 24px rgba(35, 30, 84, .045);
+    }
+
+    /* ==========================================================
+       FILTROS
+       ========================================================== */
+
+    .ms-filters {
+      display: grid;
+      grid-template-columns:
+        minmax(140px, .65fr)
+        minmax(220px, 1.25fr)
+        minmax(220px, 1.25fr)
+        auto;
+      gap: 14px;
+      align-items: end;
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+
+    .ms-field {
+      min-width: 0;
+    }
+
+    .ms-label {
+      display: block;
+      margin: 0 0 7px;
+      color: var(--ms-muted);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    .ms-select {
+      width: 100%;
+      height: 42px;
+      padding: 0 12px;
+      border: 1px solid var(--ms-border);
+      border-radius: 10px;
+      outline: none;
+      background: var(--ms-white);
+      color: var(--ms-text);
+      font-family: inherit;
+      font-size: 12px;
+      transition:
+        border-color .15s ease,
+        box-shadow .15s ease;
+    }
+
+    .ms-select:focus {
+      border-color: var(--ms-blue);
+      box-shadow: 0 0 0 3px rgba(113, 160, 247, .12);
+    }
+
+    .ms-filter-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* ==========================================================
+       SETUP
+       ========================================================== */
+
+    .ms-setup {
+      display: none;
+      padding: 25px;
+      margin-bottom: 22px;
+    }
+
+    .ms-setup.is-visible {
+      display: block;
+    }
+
+    .ms-setup-title {
+      margin: 0 0 6px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .ms-setup-copy {
+      margin: 0 0 18px;
+      color: var(--ms-muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    /* ==========================================================
+       KPIS
+       ========================================================== */
+
+    .ms-kpis {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 15px;
+      margin-bottom: 18px;
+    }
+
+    .ms-kpi {
+      padding: 19px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ms-kpi::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      height: 3px;
+      background: transparent;
+    }
+
+    .ms-kpi[data-status="excellent"]::after {
+      background: var(--ms-teal);
+    }
+
+    .ms-kpi[data-status="good"]::after {
+      background: var(--ms-blue);
+    }
+
+    .ms-kpi[data-status="attention"]::after {
+      background: var(--ms-attention);
+    }
+
+    .ms-kpi[data-status="risk"]::after {
+      background: var(--ms-risk);
+    }
+
+    .ms-kpi[data-status="critical"]::after {
+      background: var(--ms-critical);
+    }
+
+    .ms-kpi-label {
+      margin: 0 0 11px;
+      color: var(--ms-muted);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .ms-kpi-value {
+      margin: 0;
+      color: var(--ms-primary);
+      font-size: 30px;
+      line-height: 1;
+      font-weight: 700;
+    }
+
+    .ms-kpi-meta {
+      min-height: 18px;
+      margin: 9px 0 0;
+      color: var(--ms-muted);
+      font-size: 11px;
+    }
+
+    .ms-kpi-alerts.has-alerts .ms-kpi-value {
+      color: var(--ms-critical);
+    }
+
+    /* ==========================================================
+       ESTRUCTURA
+       ========================================================== */
+
+    .ms-grid-main {
+      display: grid;
+      grid-template-columns:
+        minmax(0, 1.35fr)
+        minmax(340px, .65fr);
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .ms-panel {
+      padding: 21px;
+      min-width: 0;
+    }
+
+    .ms-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .ms-panel-title {
+      margin: 0;
+      color: var(--ms-primary);
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .ms-panel-description {
+      margin: 5px 0 0;
+      color: var(--ms-muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    /* ==========================================================
+       CLIENTES
+       ========================================================== */
+
+    .ms-client-list,
+    .ms-aspect-list,
+    .ms-alert-list,
+    .ms-comments {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .ms-client-row {
+      padding: 14px 0;
+      border-bottom: 1px solid var(--ms-border);
+    }
+
+    .ms-client-row:last-child {
+      border-bottom: 0;
+    }
+
+    .ms-client-main {
+      display: grid;
+      grid-template-columns:
+        minmax(180px, 1fr)
+        minmax(190px, 1.2fr)
+        72px;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .ms-client-name {
+      min-width: 0;
+    }
+
+    .ms-client-name strong {
+      display: block;
+      overflow: hidden;
+      color: var(--ms-primary);
+      font-size: 13px;
+      font-weight: 700;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .ms-client-name span {
+      display: block;
+      margin-top: 4px;
+      color: var(--ms-muted);
+      font-size: 10px;
+    }
+
+    .ms-track {
+      position: relative;
+      overflow: hidden;
+      width: 100%;
+      height: 9px;
+      background: #EEF0F7;
+      border-radius: 999px;
+    }
+
+    .ms-fill {
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(
+        90deg,
+        var(--ms-secondary),
+        var(--ms-blue)
+      );
+      transition: width .4s ease;
+    }
+
+    .ms-fill[data-status="excellent"] {
+      background: var(--ms-teal);
+    }
+
+    .ms-fill[data-status="good"] {
+      background: var(--ms-blue);
+    }
+
+    .ms-fill[data-status="attention"] {
+      background: var(--ms-attention);
+    }
+
+    .ms-fill[data-status="risk"] {
+      background: var(--ms-risk);
+    }
+
+    .ms-fill[data-status="critical"] {
+      background: var(--ms-critical);
+    }
+
+    .ms-score {
+      text-align: right;
+      color: var(--ms-primary);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .ms-score small {
+      color: var(--ms-muted);
+      font-size: 10px;
+      font-weight: 400;
+    }
+
+    .ms-client-footer {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 9px;
+    }
+
+    .ms-badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 23px;
+      padding: 0 9px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .ms-badge-none {
+      background: #F1F2F6;
+      color: var(--ms-muted);
+    }
+
+    .ms-badge-excellent {
+      background: rgba(112, 177, 171, .15);
+      color: var(--ms-success);
+    }
+
+    .ms-badge-good {
+      background: rgba(113, 160, 247, .15);
+      color: var(--ms-secondary);
+    }
+
+    .ms-badge-attention {
+      background: rgba(181, 138, 35, .13);
+      color: #8E6916;
+    }
+
+    .ms-badge-risk {
+      background: rgba(196, 106, 50, .13);
+      color: var(--ms-risk);
+    }
+
+    .ms-badge-critical {
+      background: rgba(181, 71, 71, .13);
+      color: var(--ms-critical);
+    }
+
+    .ms-trend {
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .ms-trend-up {
+      color: var(--ms-success);
+    }
+
+    .ms-trend-down {
+      color: var(--ms-critical);
+    }
+
+    .ms-trend-flat {
+      color: var(--ms-muted);
+    }
+
+    /* ==========================================================
+       ASPECTOS
+       ========================================================== */
+
+    .ms-aspect-row {
+      display: grid;
+      grid-template-columns:
+        minmax(170px, 1.15fr)
+        minmax(120px, 1fr)
+        48px;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .ms-aspect-label {
+      color: var(--ms-text);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    /* ==========================================================
+       MESES
+       ========================================================== */
+
+    .ms-months {
+      display: grid;
+      grid-template-columns:
+        repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px;
+    }
+
+    .ms-month {
+      padding: 16px;
+      background: var(--ms-bg);
+      border: 1px solid var(--ms-border);
+      border-radius: 13px;
+    }
+
+    .ms-month-label {
+      margin: 0;
+      color: var(--ms-muted);
+      font-size: 11px;
+    }
+
+    .ms-month-score {
+      margin: 10px 0 6px;
+      color: var(--ms-primary);
+      font-size: 26px;
+      font-weight: 700;
+    }
+
+    .ms-month-responses {
+      margin: 0;
+      color: var(--ms-muted);
+      font-size: 10px;
+    }
+
+    /* ==========================================================
+       NPS
+       ========================================================== */
+
+    .ms-nps-scale {
+      margin-top: 22px;
+    }
+
+    .ms-nps-track {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      overflow: hidden;
+      height: 8px;
+      border-radius: 999px;
+    }
+
+    .ms-nps-negative {
+      background: #D98888;
+    }
+
+    .ms-nps-neutral {
+      background: #E6C174;
+    }
+
+    .ms-nps-positive {
+      background: var(--ms-teal);
+    }
+
+    .ms-nps-legend {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .ms-nps-legend div {
+      color: var(--ms-muted);
+      font-size: 10px;
+    }
+
+    .ms-nps-legend div:nth-child(2) {
+      text-align: center;
+    }
+
+    .ms-nps-legend div:nth-child(3) {
+      text-align: right;
+    }
+
+    /* ==========================================================
+       ALERTAS
+       ========================================================== */
+
+    .ms-alert {
+      padding: 14px;
+      border: 1px solid rgba(181, 71, 71, .18);
+      border-left: 4px solid var(--ms-critical);
+      border-radius: 11px;
+      background: rgba(181, 71, 71, .045);
+    }
+
+    .ms-alert-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .ms-alert-company {
+      color: var(--ms-primary);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .ms-alert-date {
+      color: var(--ms-muted);
+      font-size: 10px;
+    }
+
+    .ms-alert-reasons {
+      margin: 0;
+      padding-left: 17px;
+      color: #5E5260;
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    /* ==========================================================
+       COMENTARIOS
+       ========================================================== */
+
+    .ms-comment {
+      padding: 16px;
+      background: var(--ms-bg);
+      border: 1px solid var(--ms-border);
+      border-radius: 12px;
+    }
+
+    .ms-comment-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .ms-comment-company {
+      color: var(--ms-primary);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .ms-comment-date {
+      color: var(--ms-muted);
+      font-size: 10px;
+    }
+
+    .ms-comment-label {
+      margin: 9px 0 3px;
+      color: var(--ms-secondary);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    .ms-comment-text {
+      margin: 0;
+      color: #51536A;
+      font-size: 11px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+    }
+
+    /* ==========================================================
+       ESTADOS
+       ========================================================== */
+
+    .ms-empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 120px;
+      padding: 24px;
+      color: var(--ms-muted);
+      text-align: center;
+      font-size: 12px;
+    }
+
+    .ms-loading {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(249, 250, 254, .82);
+      backdrop-filter: blur(2px);
+    }
+
+    .ms-loading.is-visible {
+      display: flex;
+    }
+
+    .ms-spinner {
+      width: 34px;
+      height: 34px;
+      border: 3px solid #E4E7F1;
+      border-top-color: var(--ms-primary);
+      border-radius: 50%;
+      animation: msSpin .75s linear infinite;
+    }
+
+    .ms-toast {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 9999;
+      max-width: 360px;
+      padding: 13px 16px;
+      color: var(--ms-white);
+      background: var(--ms-primary);
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(35, 30, 84, .24);
+      font-size: 12px;
+      line-height: 1.45;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(10px);
+      transition: .2s ease;
+    }
+
+    .ms-toast.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .ms-toast.is-error {
+      background: var(--ms-critical);
+    }
+
+    @keyframes msSpin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* ==========================================================
+       RESPONSIVE
+       ========================================================== */
+
+    @media (max-width: 1180px) {
+      .ms-kpis {
+        grid-template-columns:
+          repeat(3, minmax(0, 1fr));
+      }
+
+      .ms-filters {
+        grid-template-columns:
+          repeat(2, minmax(0, 1fr));
+      }
+
+      .ms-filter-actions {
+        grid-column: 1 / -1;
+      }
+    }
+
+    @media (max-width: 1050px) {
+      .ms-grid-main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .ms-shell {
+        padding: 18px;
+      }
+
+      .ms-header {
+        flex-direction: column;
+      }
+
+      .ms-actions {
+        justify-content: flex-start;
+      }
+
+      .ms-filters {
+        grid-template-columns: 1fr;
+      }
+
+      .ms-filter-actions {
+        grid-column: auto;
+      }
+
+      .ms-kpis {
+        grid-template-columns: 1fr;
+      }
+
+      .ms-client-main {
+        grid-template-columns: 1fr;
+        gap: 7px;
+      }
+
+      .ms-score {
+        text-align: left;
+      }
+
+      .ms-aspect-row {
+        grid-template-columns: 1fr;
+        gap: 7px;
+      }
+    }
+  </style>
+
+
+  <div class="ms-shell">
+
+    <header class="ms-header">
+
+      <div>
+        <p class="ms-eyebrow">
+          Módulo 07
+        </p>
+
+        <h1 class="ms-title">
+          Medición del servicio
+        </h1>
+
+        <p class="ms-subtitle">
+          Seguimiento de satisfacción, percepción del cliente,
+          NPS y alertas de servicio.
+        </p>
+
+        <div
+          class="ms-period"
+          id="msPeriod"
+        >
+          Cargando período...
+        </div>
+      </div>
+
+
+      <div class="ms-actions">
+
+        <button
+          class="ms-button ms-button-secondary"
+          id="msCopyButton"
+          type="button"
+          onclick="MS_UI.copyFormLink()"
+          disabled
+        >
+          Copiar enlace encuesta
+        </button>
+
+        <button
+          class="ms-button ms-button-secondary"
+          id="msOpenButton"
+          type="button"
+          onclick="MS_UI.openForm()"
+          disabled
+        >
+          Abrir encuesta
+        </button>
+
+        <button
+          class="ms-button ms-button-primary"
+          type="button"
+          onclick="MS_UI.refresh()"
+        >
+          Actualizar
+        </button>
+
+      </div>
+    </header>
+
+
+    <section
+      class="ms-card ms-filters"
+      id="msFilters"
+    >
+
+      <div class="ms-field">
+        <label
+          class="ms-label"
+          for="msMonthsFilter"
+        >
+          Período
+        </label>
+
+        <select
+          class="ms-select"
+          id="msMonthsFilter"
+          onchange="MS_UI.changeFilters()"
+        >
+          <option value="1">1 mes</option>
+          <option value="2" selected>2 meses</option>
+          <option value="3">3 meses</option>
+          <option value="4">4 meses</option>
+          <option value="5">5 meses</option>
+          <option value="6">6 meses</option>
+        </select>
+      </div>
+
+
+      <div class="ms-field">
+        <label
+          class="ms-label"
+          for="msClientFilter"
+        >
+          Cliente
+        </label>
+
+        <select
+          class="ms-select"
+          id="msClientFilter"
+          onchange="MS_UI.changeFilters()"
+        >
+          <option value="">
+            Todos los clientes
+          </option>
+        </select>
+      </div>
+
+
+      <div class="ms-field">
+        <label
+          class="ms-label"
+          for="msServiceFilter"
+        >
+          Servicio
+        </label>
+
+        <select
+          class="ms-select"
+          id="msServiceFilter"
+          onchange="MS_UI.changeFilters()"
+        >
+          <option value="">
+            Todos los servicios
+          </option>
+        </select>
+      </div>
+
+      <div class="ms-filter-actions">
+
+      <button
+        class="ms-button ms-button-secondary"
+        type="button"
+        onclick="MS_UI.clearFilters()"
+      >
+        Limpiar filtros
+      </button>
+
+      <button
+        class="ms-button ms-button-primary"
+        type="button"
+        onclick="MS_UI.exportExcel()"
+      >
+        Exportar Excel
+      </button>
+
+    </div>
+      
+
+    </section>
+
+
+    <section
+      class="ms-card ms-setup"
+      id="msSetup"
+    >
+
+      <h2 class="ms-setup-title">
+        La encuesta todavía no está configurada
+      </h2>
+
+      <p class="ms-setup-copy">
+        El sistema puede crear automáticamente el Google Form
+        y vincularlo con la base
+        BD_ENCUESTAS_SATISFACCION.
+      </p>
+
+      <button
+        class="ms-button ms-button-primary"
+        type="button"
+        onclick="MS_UI.createSurvey()"
+      >
+        Crear encuesta de satisfacción
+      </button>
+
+    </section>
+
+
+    <section class="ms-kpis">
+
+      <article
+        class="ms-card ms-kpi"
+        id="msSatisfactionCard"
+        data-status="none"
+      >
+        <p class="ms-kpi-label">
+          Satisfacción general
+        </p>
+
+        <p
+          class="ms-kpi-value"
+          id="msSatisfaction"
+        >
+          —
+        </p>
+
+        <p
+          class="ms-kpi-meta"
+          id="msSatisfactionMeta"
+        >
+          Sin respuestas
+        </p>
+      </article>
+
+
+      <article class="ms-card ms-kpi">
+        <p class="ms-kpi-label">
+          NPS
+        </p>
+
+        <p
+          class="ms-kpi-value"
+          id="msNps"
+        >
+          —
+        </p>
+
+        <p
+          class="ms-kpi-meta"
+          id="msNpsMeta"
+        >
+          Sin respuestas
+        </p>
+      </article>
+
+
+      <article class="ms-card ms-kpi">
+        <p class="ms-kpi-label">
+          Respuestas
+        </p>
+
+        <p
+          class="ms-kpi-value"
+          id="msResponses"
+        >
+          0
+        </p>
+
+        <p class="ms-kpi-meta">
+          Dentro del período filtrado
+        </p>
+      </article>
+
+
+      <article class="ms-card ms-kpi">
+        <p class="ms-kpi-label">
+          Clientes evaluados
+        </p>
+
+        <p
+          class="ms-kpi-value"
+          id="msClients"
+        >
+          0
+        </p>
+
+        <p class="ms-kpi-meta">
+          Empresas con respuesta
+        </p>
+      </article>
+
+
+      <article
+        class="ms-card ms-kpi ms-kpi-alerts"
+        id="msAlertsCard"
+      >
+        <p class="ms-kpi-label">
+          Alertas
+        </p>
+
+        <p
+          class="ms-kpi-value"
+          id="msAlerts"
+        >
+          0
+        </p>
+
+        <p
+          class="ms-kpi-meta"
+          id="msAlertsMeta"
+        >
+          Sin alertas
+        </p>
+      </article>
+
+    </section>
+
+
+    <section class="ms-grid-main">
+
+      <article class="ms-card ms-panel">
+
+        <div class="ms-panel-header">
+          <div>
+            <h2 class="ms-panel-title">
+              Nivel de satisfacción por cliente
+            </h2>
+
+            <p class="ms-panel-description">
+              Promedio del período, última respuesta y tendencia reciente.
+            </p>
+          </div>
+        </div>
+
+        <div
+          class="ms-client-list"
+          id="msClientList"
+        ></div>
+
+      </article>
+
+
+      <article class="ms-card ms-panel">
+
+        <div class="ms-panel-header">
+          <div>
+            <h2 class="ms-panel-title">
+              Evolución del período
+            </h2>
+
+            <p class="ms-panel-description">
+              Comparación mensual de satisfacción y número de respuestas.
+            </p>
+          </div>
+        </div>
+
+        <div
+          class="ms-months"
+          id="msMonths"
+        ></div>
+
+
+        <div class="ms-nps-scale">
+
+          <div class="ms-nps-track">
+            <div class="ms-nps-negative"></div>
+            <div class="ms-nps-neutral"></div>
+            <div class="ms-nps-positive"></div>
+          </div>
+
+          <div class="ms-nps-legend">
+            <div id="msDetractors">
+              Detractores: 0
+            </div>
+
+            <div id="msPassives">
+              Pasivos: 0
+            </div>
+
+            <div id="msPromoters">
+              Promotores: 0
+            </div>
+          </div>
+
+        </div>
+
+      </article>
+
+    </section>
+
+
+    <section class="ms-grid-main">
+
+      <article class="ms-card ms-panel">
+
+        <div class="ms-panel-header">
+          <div>
+            <h2 class="ms-panel-title">
+              Resultado por aspecto
+            </h2>
+
+            <p class="ms-panel-description">
+              Fortalezas y variables que requieren intervención.
+            </p>
+          </div>
+        </div>
+
+        <div
+          class="ms-aspect-list"
+          id="msAspectList"
+        ></div>
+
+      </article>
+
+
+      <article class="ms-card ms-panel">
+
+        <div class="ms-panel-header">
+          <div>
+            <h2 class="ms-panel-title">
+              Alertas de servicio
+            </h2>
+
+            <p class="ms-panel-description">
+              Respuestas con calificaciones críticas o NPS detractor.
+            </p>
+          </div>
+        </div>
+
+        <div
+          class="ms-alert-list"
+          id="msAlertList"
+        ></div>
+
+      </article>
+
+    </section>
+
+
+    <section class="ms-card ms-panel">
+
+      <div class="ms-panel-header">
+        <div>
+          <h2 class="ms-panel-title">
+            Voz del cliente
+          </h2>
+
+          <p class="ms-panel-description">
+            Comentarios recientes sobre oportunidades de mejora
+            y aspectos valorados.
+          </p>
+        </div>
+      </div>
+
+      <div
+        class="ms-comments"
+        id="msComments"
+      ></div>
+
+    </section>
+
+  </div>
+
+
+  <div
+    class="ms-loading"
+    id="msLoading"
+  >
+    <div class="ms-spinner"></div>
+  </div>
+
+
+  <div
+    class="ms-toast"
+    id="msToast"
+  ></div>
+
+
+  <script>
+    const MS_UI = (() => {
+      'use strict';
+
+      let state = null;
+      let toastTimer = null;
+
+      let filters = {
+        meses: 2,
+        cliente: '',
+        servicio: ''
+      };
+
+
+      function init() {
+        refresh();
+      }
+
+
+      function refresh() {
+        setLoading(true);
+
+        google.script.run
+          .withSuccessHandler(handleDashboard)
+          .withFailureHandler(handleFailure)
+          .msObtenerDashboard({
+            meses: filters.meses,
+            cliente: filters.cliente,
+            servicio: filters.servicio
+          });
+      }
+
+
+      function handleDashboard(result) {
+        setLoading(false);
+
+        if (!result || result.ok !== true) {
+          showToast(
+            'No fue posible cargar la información.',
+            true
+          );
+          return;
+        }
+
+        state = result;
+
+        if (result.filtros) {
+          filters = {
+            meses:
+              Number(result.filtros.meses) || 2,
+
+            cliente:
+              result.filtros.cliente || '',
+
+            servicio:
+              result.filtros.servicio || ''
+          };
+        }
+
+        renderFormState();
+        renderFilters();
+        renderPeriod();
+        renderKpis();
+        renderClients();
+        renderAspects();
+        renderMonths();
+        renderAlerts();
+        renderComments();
+      }
+
+
+      function renderFormState() {
+        const setup =
+          document.getElementById(
+            'msSetup'
+          );
+
+        const copyButton =
+          document.getElementById(
+            'msCopyButton'
+          );
+
+        const openButton =
+          document.getElementById(
+            'msOpenButton'
+          );
+
+        const configured =
+          Boolean(
+            state &&
+            state.form &&
+            state.form.configured
+          );
+
+        setup.classList.toggle(
+          'is-visible',
+          !configured
+        );
+
+        copyButton.disabled =
+          !configured;
+
+        openButton.disabled =
+          !configured;
+      }
+
+
+      function renderFilters() {
+        const months =
+          document.getElementById(
+            'msMonthsFilter'
+          );
+
+        const client =
+          document.getElementById(
+            'msClientFilter'
+          );
+
+        const service =
+          document.getElementById(
+            'msServiceFilter'
+          );
+
+        months.value =
+          String(filters.meses);
+
+
+        const options =
+          state.filterOptions || {};
+
+        populateSelect(
+          client,
+          Array.isArray(options.clients)
+            ? options.clients
+            : [],
+          'Todos los clientes',
+          filters.cliente
+        );
+
+        populateSelect(
+          service,
+          Array.isArray(options.services)
+            ? options.services
+            : [],
+          'Todos los servicios',
+          filters.servicio
+        );
+      }
+
+
+      function populateSelect(
+        select,
+        values,
+        emptyLabel,
+        selectedValue
+      ) {
+        clearNode(select);
+
+        const empty =
+          document.createElement(
+            'option'
+          );
+
+        empty.value = '';
+        empty.textContent =
+          emptyLabel;
+
+        select.appendChild(
+          empty
+        );
+
+        values.forEach((value) => {
+          const option =
+            document.createElement(
+              'option'
+            );
+
+          option.value = value;
+          option.textContent = value;
+
+          select.appendChild(
+            option
+          );
+        });
+
+        select.value =
+          selectedValue || '';
+
+        if (
+          selectedValue &&
+          select.value !== selectedValue
+        ) {
+          select.value = '';
+        }
+      }
+
+
+      function changeFilters() {
+        const months =
+          document.getElementById(
+            'msMonthsFilter'
+          );
+
+        const client =
+          document.getElementById(
+            'msClientFilter'
+          );
+
+        const service =
+          document.getElementById(
+            'msServiceFilter'
+          );
+
+        filters = {
+          meses:
+            Number(months.value) || 2,
+
+          cliente:
+            client.value || '',
+
+          servicio:
+            service.value || ''
+        };
+
+        refresh();
+      }
+
+
+      function clearFilters() {
+        filters = {
+          meses: 2,
+          cliente: '',
+          servicio: ''
+        };
+
+        refresh();
+      }
+
+
+      function renderPeriod() {
+        setText(
+          'msPeriod',
+          state.period &&
+          state.period.label
+            ? state.period.label
+            : 'Sin período'
+        );
+      }
+
+
+      function renderKpis() {
+        const kpis =
+          state.kpis || {};
+
+        setText(
+          'msSatisfaction',
+          formatScore(
+            kpis.satisfaction
+          )
+        );
+
+        setText(
+          'msSatisfactionMeta',
+          kpis.satisfactionLevel ||
+          'Sin datos'
+        );
+
+        const satisfactionCard =
+          document.getElementById(
+            'msSatisfactionCard'
+          );
+
+        satisfactionCard.setAttribute(
+          'data-status',
+          kpis.satisfactionStatus ||
+          'none'
+        );
+
+
+        setText(
+          'msNps',
+          kpis.nps === null ||
+          kpis.nps === undefined
+            ? '—'
+            : String(kpis.nps)
+        );
+
+        setText(
+          'msNpsMeta',
+          getNpsLabel(
+            kpis.nps
+          )
+        );
+
+        setText(
+          'msResponses',
+          String(
+            kpis.responses || 0
+          )
+        );
+
+        setText(
+          'msClients',
+          String(
+            kpis.clients || 0
+          )
+        );
+
+
+        const alerts =
+          Number(
+            kpis.alerts || 0
+          );
+
+        setText(
+          'msAlerts',
+          String(alerts)
+        );
+
+        setText(
+          'msAlertsMeta',
+          alerts > 0
+            ? 'Requiere revisión'
+            : 'Sin alertas'
+        );
+
+        document
+          .getElementById(
+            'msAlertsCard'
+          )
+          .classList
+          .toggle(
+            'has-alerts',
+            alerts > 0
+          );
+
+
+        setText(
+          'msDetractors',
+          'Detractores: ' +
+          String(
+            kpis.detractors || 0
+          )
+        );
+
+        setText(
+          'msPassives',
+          'Pasivos: ' +
+          String(
+            kpis.passives || 0
+          )
+        );
+
+        setText(
+          'msPromoters',
+          'Promotores: ' +
+          String(
+            kpis.promoters || 0
+          )
+        );
+      }
+
+
+      function renderClients() {
+        const container =
+          document.getElementById(
+            'msClientList'
+          );
+
+        clearNode(container);
+
+        const clients =
+          Array.isArray(
+            state.clients
+          )
+            ? state.clients
+            : [];
+
+        if (!clients.length) {
+          container.appendChild(
+            createEmpty(
+              'No existen respuestas dentro de los filtros seleccionados.'
+            )
+          );
+          return;
+        }
+
+
+        clients.forEach((client) => {
+          const row =
+            createElement(
+              'div',
+              'ms-client-row'
+            );
+
+          const main =
+            createElement(
+              'div',
+              'ms-client-main'
+            );
+
+
+          const name =
+            createElement(
+              'div',
+              'ms-client-name'
+            );
+
+          const strong =
+            document.createElement(
+              'strong'
+            );
+
+          strong.textContent =
+            client.company ||
+            'Cliente';
+
+          const meta =
+            document.createElement(
+              'span'
+            );
+
+          meta.textContent =
+            String(
+              client.responses || 0
+            ) +
+            ' respuesta(s) · Última: ' +
+            (
+              client.lastResponse ||
+              '—'
+            );
+
+          name.appendChild(
+            strong
+          );
+
+          name.appendChild(
+            meta
+          );
+
+
+          const track =
+            createElement(
+              'div',
+              'ms-track'
+            );
+
+          const fill =
+            createElement(
+              'div',
+              'ms-fill'
+            );
+
+          fill.style.width =
+            scoreToPercent(
+              client.satisfaction
+            ) + '%';
+
+          fill.setAttribute(
+            'data-status',
+            client.severity ||
+            'none'
+          );
+
+          track.appendChild(
+            fill
+          );
+
+
+          const score =
+            createElement(
+              'div',
+              'ms-score'
+            );
+
+          score.textContent =
+            client.satisfaction === null ||
+            client.satisfaction === undefined
+              ? '—'
+              : Number(
+                  client.satisfaction
+                ).toFixed(2);
+
+          const suffix =
+            document.createElement(
+              'small'
+            );
+
+          suffix.textContent =
+            ' / 5';
+
+          score.appendChild(
+            suffix
+          );
+
+
+          main.appendChild(
+            name
+          );
+
+          main.appendChild(
+            track
+          );
+
+          main.appendChild(
+            score
+          );
+
+
+          const footer =
+            createElement(
+              'div',
+              'ms-client-footer'
+            );
+
+          footer.appendChild(
+            createStatusBadge(
+              client.level,
+              client.severity
+            )
+          );
+
+          footer.appendChild(
+            createTrend(
+              client.trend
+            )
+          );
+
+
+          row.appendChild(
+            main
+          );
+
+          row.appendChild(
+            footer
+          );
+
+          container.appendChild(
+            row
+          );
+        });
+      }
+
+
+      function createStatusBadge(
+        label,
+        severity
+      ) {
+        const element =
+          createElement(
+            'span',
+            'ms-badge ' +
+            getBadgeClass(
+              severity
+            )
+          );
+
+        element.textContent =
+          label || 'Sin datos';
+
+        return element;
+      }
+
+
+      function getBadgeClass(
+        severity
+      ) {
+        const allowed = [
+          'excellent',
+          'good',
+          'attention',
+          'risk',
+          'critical'
+        ];
+
+        return allowed.includes(
+          severity
+        )
+          ? 'ms-badge-' +
+            severity
+          : 'ms-badge-none';
+      }
+
+
+      function createTrend(value) {
+        const trend =
+          createElement(
+            'span',
+            'ms-trend'
+          );
+
+        if (
+          value === null ||
+          value === undefined ||
+          !Number.isFinite(
+            Number(value)
+          )
+        ) {
+          trend.classList.add(
+            'ms-trend-flat'
+          );
+
+          trend.textContent =
+            'Sin histórico suficiente';
+
+          return trend;
+        }
+
+        const number =
+          Number(value);
+
+        if (number > 0) {
+          trend.classList.add(
+            'ms-trend-up'
+          );
+
+          trend.textContent =
+            '↑ +' +
+            number.toFixed(2);
+        } else if (number < 0) {
+          trend.classList.add(
+            'ms-trend-down'
+          );
+
+          trend.textContent =
+            '↓ ' +
+            number.toFixed(2);
+        } else {
+          trend.classList.add(
+            'ms-trend-flat'
+          );
+
+          trend.textContent =
+            '→ 0.00';
+        }
+
+        return trend;
+      }
+
+
+      function renderAspects() {
+        const container =
+          document.getElementById(
+            'msAspectList'
+          );
+
+        clearNode(container);
+
+        const aspects =
+          Array.isArray(
+            state.aspects
+          )
+            ? state.aspects
+            : [];
+
+        if (!aspects.length) {
+          container.appendChild(
+            createEmpty(
+              'Sin información para mostrar.'
+            )
+          );
+          return;
+        }
+
+
+        aspects.forEach((aspect) => {
+          const row =
+            createElement(
+              'div',
+              'ms-aspect-row'
+            );
+
+
+          const label =
+            createElement(
+              'div',
+              'ms-aspect-label'
+            );
+
+          label.textContent =
+            aspect.aspect;
+
+
+          const track =
+            createElement(
+              'div',
+              'ms-track'
+            );
+
+          const fill =
+            createElement(
+              'div',
+              'ms-fill'
+            );
+
+          fill.style.width =
+            scoreToPercent(
+              aspect.average
+            ) + '%';
+
+          fill.setAttribute(
+            'data-status',
+            aspect.severity ||
+            'none'
+          );
+
+          track.appendChild(
+            fill
+          );
+
+
+          const score =
+            createElement(
+              'div',
+              'ms-score'
+            );
+
+          score.textContent =
+            aspect.average === null ||
+            aspect.average === undefined
+              ? '—'
+              : Number(
+                  aspect.average
+                ).toFixed(2);
+
+
+          row.appendChild(
+            label
+          );
+
+          row.appendChild(
+            track
+          );
+
+          row.appendChild(
+            score
+          );
+
+          container.appendChild(
+            row
+          );
+        });
+      }
+
+
+      function renderMonths() {
+        const container =
+          document.getElementById(
+            'msMonths'
+          );
+
+        clearNode(container);
+
+        const months =
+          Array.isArray(
+            state.months
+          )
+            ? state.months
+            : [];
+
+        if (!months.length) {
+          container.appendChild(
+            createEmpty(
+              'Sin información mensual.'
+            )
+          );
+          return;
+        }
+
+
+        months.forEach((month) => {
+          const card =
+            createElement(
+              'div',
+              'ms-month'
+            );
+
+          const label =
+            createElement(
+              'p',
+              'ms-month-label'
+            );
+
+          label.textContent =
+            month.label ||
+            '—';
+
+
+          const score =
+            createElement(
+              'p',
+              'ms-month-score'
+            );
+
+          score.textContent =
+            formatScore(
+              month.satisfaction
+            );
+
+
+          const responses =
+            createElement(
+              'p',
+              'ms-month-responses'
+            );
+
+          responses.textContent =
+            String(
+              month.responses || 0
+            ) +
+            ' respuesta(s)';
+
+
+          card.appendChild(
+            label
+          );
+
+          card.appendChild(
+            score
+          );
+
+          card.appendChild(
+            responses
+          );
+
+          container.appendChild(
+            card
+          );
+        });
+      }
+
+
+      function renderAlerts() {
+        const container =
+          document.getElementById(
+            'msAlertList'
+          );
+
+        clearNode(container);
+
+        const alerts =
+          Array.isArray(
+            state.alerts
+          )
+            ? state.alerts
+            : [];
+
+        if (!alerts.length) {
+          container.appendChild(
+            createEmpty(
+              'No existen alertas dentro del período filtrado.'
+            )
+          );
+          return;
+        }
+
+
+        alerts.forEach((alert) => {
+          const card =
+            createElement(
+              'div',
+              'ms-alert'
+            );
+
+
+          const head =
+            createElement(
+              'div',
+              'ms-alert-head'
+            );
+
+          const company =
+            createElement(
+              'div',
+              'ms-alert-company'
+            );
+
+          company.textContent =
+            alert.company ||
+            'Cliente';
+
+
+          const date =
+            createElement(
+              'div',
+              'ms-alert-date'
+            );
+
+          date.textContent =
+            alert.date || '';
+
+
+          head.appendChild(
+            company
+          );
+
+          head.appendChild(
+            date
+          );
+
+
+          const reasons =
+            document.createElement(
+              'ul'
+            );
+
+          reasons.className =
+            'ms-alert-reasons';
+
+          (
+            Array.isArray(
+              alert.reasons
+            )
+              ? alert.reasons
+              : []
+          ).forEach((reason) => {
+            const item =
+              document.createElement(
+                'li'
+              );
+
+            item.textContent =
+              reason;
+
+            reasons.appendChild(
+              item
+            );
+          });
+
+
+          card.appendChild(
+            head
+          );
+
+          card.appendChild(
+            reasons
+          );
+
+          container.appendChild(
+            card
+          );
+        });
+      }
+
+
+      function renderComments() {
+        const container =
+          document.getElementById(
+            'msComments'
+          );
+
+        clearNode(container);
+
+        const comments =
+          Array.isArray(
+            state.comments
+          )
+            ? state.comments
+            : [];
+
+        if (!comments.length) {
+          container.appendChild(
+            createEmpty(
+              'Aún no existen comentarios dentro del período.'
+            )
+          );
+          return;
+        }
+
+
+        comments
+          .slice(0, 12)
+          .forEach((comment) => {
+            const card =
+              createElement(
+                'div',
+                'ms-comment'
+              );
+
+
+            const head =
+              createElement(
+                'div',
+                'ms-comment-head'
+              );
+
+            const company =
+              createElement(
+                'div',
+                'ms-comment-company'
+              );
+
+            company.textContent =
+              comment.company ||
+              'Cliente';
+
+
+            const date =
+              createElement(
+                'div',
+                'ms-comment-date'
+              );
+
+            date.textContent =
+              comment.date || '';
+
+
+            head.appendChild(
+              company
+            );
+
+            head.appendChild(
+              date
+            );
+
+            card.appendChild(
+              head
+            );
+
+
+            if (
+              comment.improvement
+            ) {
+              card.appendChild(
+                createCommentLabel(
+                  'Oportunidad de mejora'
+                )
+              );
+
+              card.appendChild(
+                createCommentText(
+                  comment.improvement
+                )
+              );
+            }
+
+
+            if (
+              comment.strength
+            ) {
+              card.appendChild(
+                createCommentLabel(
+                  'Aspecto valorado'
+                )
+              );
+
+              card.appendChild(
+                createCommentText(
+                  comment.strength
+                )
+              );
+            }
+
+
+            container.appendChild(
+              card
+            );
+          });
+      }
+
+
+      function createSurvey() {
+        setLoading(true);
+
+        google.script.run
+          .withSuccessHandler(() => {
+            showToast(
+              'Encuesta creada y vinculada correctamente.'
+            );
+
+            refresh();
+          })
+          .withFailureHandler(
+            handleFailure
+          )
+          .msConfigurarEncuesta();
+      }
+
+
+      function openForm() {
+        const url =
+          state &&
+          state.form &&
+          state.form.formUrl
+            ? state.form.formUrl
+            : '';
+
+        if (!url) {
+          showToast(
+            'La encuesta todavía no está configurada.',
+            true
+          );
+          return;
+        }
+
+        window.open(
+          url,
+          '_blank',
+          'noopener,noreferrer'
+        );
+      }
+
+
+      async function copyFormLink() {
+        const url =
+          state &&
+          state.form &&
+          state.form.formUrl
+            ? state.form.formUrl
+            : '';
+
+        if (!url) {
+          showToast(
+            'La encuesta todavía no está configurada.',
+            true
+          );
+          return;
+        }
+
+        try {
+          await navigator
+            .clipboard
+            .writeText(url);
+
+          showToast(
+            'Enlace de la encuesta copiado.'
+          );
+
+        } catch (error) {
+          fallbackCopy(url);
+        }
+      }
+
+
+      function fallbackCopy(value) {
+        const textarea =
+          document.createElement(
+            'textarea'
+          );
+
+        textarea.value =
+          value;
+
+        textarea.setAttribute(
+          'readonly',
+          ''
+        );
+
+        textarea.style.position =
+          'fixed';
+
+        textarea.style.opacity =
+          '0';
+
+        document.body.appendChild(
+          textarea
+        );
+
+        textarea.select();
+
+        const success =
+          document.execCommand(
+            'copy'
+          );
+
+        document.body.removeChild(
+          textarea
+        );
+
+        showToast(
+          success
+            ? 'Enlace de la encuesta copiado.'
+            : 'No fue posible copiar el enlace.',
+          !success
+        );
+      }
+
+        function exportExcel() {
+  setLoading(true);
+
+  google.script.run
+    .withSuccessHandler((result) => {
+      setLoading(false);
+
+      if (
+        !result ||
+        result.ok !== true ||
+        !result.base64 ||
+        !result.fileName
+      ) {
+        showToast(
+          'No fue posible generar el archivo Excel.',
+          true
+        );
+        return;
+      }
+
+      const binary =
+        atob(result.base64);
+
+      const bytes =
+        new Uint8Array(
+          binary.length
+        );
+
+      for (
+        let i = 0;
+        i < binary.length;
+        i++
+      ) {
+        bytes[i] =
+          binary.charCodeAt(i);
+      }
+
+      const blob =
+        new Blob(
+          [bytes],
+          {
+            type:
+              result.mimeType ||
+              'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+          }
+        );
+
+      const url =
+        URL.createObjectURL(
+          blob
+        );
+
+      const link =
+        document.createElement(
+          'a'
+        );
+
+      link.href =
+        url;
+
+      link.download =
+        result.fileName;
+
+      document.body.appendChild(
+        link
+      );
+
+      link.click();
+
+      document.body.removeChild(
+        link
+      );
+
+      window.setTimeout(
+        () => {
+          URL.revokeObjectURL(
+            url
+          );
+        },
+        1000
+      );
+
+      showToast(
+        'Archivo Excel generado correctamente.'
+      );
+    })
+    .withFailureHandler(
+      handleFailure
+    )
+    .msExportarExcel({
+      meses:
+        filters.meses,
+
+      cliente:
+        filters.cliente,
+
+      servicio:
+        filters.servicio
+    });
+}
+
+      function handleFailure(error) {
+        setLoading(false);
+
+        const message =
+          error &&
+          error.message
+            ? error.message
+            : String(
+                error ||
+                'Error inesperado.'
+              );
+
+        showToast(
+          message,
+          true
+        );
+      }
+
+
+      function setLoading(visible) {
+        const loading =
+          document.getElementById(
+            'msLoading'
+          );
+
+        if (!loading) {
+          return;
+        }
+
+        loading.classList.toggle(
+          'is-visible',
+          Boolean(visible)
+        );
+      }
+
+
+      function showToast(
+        message,
+        isError = false
+      ) {
+        const toast =
+          document.getElementById(
+            'msToast'
+          );
+
+        if (!toast) {
+          return;
+        }
+
+        if (toastTimer) {
+          window.clearTimeout(
+            toastTimer
+          );
+        }
+
+        toast.textContent =
+          message;
+
+        toast.classList.toggle(
+          'is-error',
+          Boolean(isError)
+        );
+
+        toast.classList.add(
+          'is-visible'
+        );
+
+        toastTimer =
+          window.setTimeout(
+            () => {
+              toast.classList.remove(
+                'is-visible'
+              );
+            },
+            3800
+          );
+      }
+
+
+      function formatScore(value) {
+        return (
+          value === null ||
+          value === undefined
+        )
+          ? '—'
+          : Number(value)
+              .toFixed(2);
+      }
+
+
+      function scoreToPercent(score) {
+        if (
+          score === null ||
+          score === undefined ||
+          !Number.isFinite(
+            Number(score)
+          )
+        ) {
+          return 0;
+        }
+
+        return Math.max(
+          0,
+          Math.min(
+            100,
+            (
+              Number(score) /
+              5
+            ) * 100
+          )
+        );
+      }
+
+
+      function getNpsLabel(nps) {
+        if (
+          nps === null ||
+          nps === undefined
+        ) {
+          return 'Sin respuestas';
+        }
+
+        const value =
+          Number(nps);
+
+        if (value >= 50) {
+          return 'Nivel muy favorable';
+        }
+
+        if (value > 0) {
+          return 'Balance favorable';
+        }
+
+        if (value === 0) {
+          return 'Balance neutral';
+        }
+
+        return 'Requiere atención';
+      }
+
+
+      function setText(id, value) {
+        const element =
+          document.getElementById(
+            id
+          );
+
+        if (element) {
+          element.textContent =
+            value;
+        }
+      }
+
+
+      function clearNode(node) {
+        if (!node) {
+          return;
+        }
+
+        while (
+          node.firstChild
+        ) {
+          node.removeChild(
+            node.firstChild
+          );
+        }
+      }
+
+
+      function createElement(
+        tag,
+        className
+      ) {
+        const element =
+          document.createElement(
+            tag
+          );
+
+        if (className) {
+          element.className =
+            className;
+        }
+
+        return element;
+      }
+
+
+      function createEmpty(message) {
+        const element =
+          createElement(
+            'div',
+            'ms-empty'
+          );
+
+        element.textContent =
+          message;
+
+        return element;
+      }
+
+
+      function createCommentLabel(
+        text
+      ) {
+        const element =
+          createElement(
+            'p',
+            'ms-comment-label'
+          );
+
+        element.textContent =
+          text;
+
+        return element;
+      }
+
+
+      function createCommentText(
+        text
+      ) {
+        const element =
+          createElement(
+            'p',
+            'ms-comment-text'
+          );
+
+        element.textContent =
+          text;
+
+        return element;
+      }
+
+      return Object.freeze({
+      init,
+      refresh,
+      changeFilters,
+      clearFilters,
+      exportExcel,
+      createSurvey,
+      openForm,
+      copyFormLink
+    });
+
+    })();
+
+MS_UI.init();
+      
+  </script>
+
+</div>
